@@ -115,6 +115,7 @@ input, textarea { font: inherit; color: var(--ink); background: var(--panel); bo
           <button type="button" class="chip">Cosa devo riordinare in magazzino?</button>
           <button type="button" class="chip">Ci sono impianti in scadenza nel registro?</button>
           <button type="button" class="chip">Riassumi le novità da tutte le app</button>
+          <button type="button" class="chip">Quali clienti aspettano una risposta su WhatsApp?</button>
         </div>
         <textarea id="prompt" rows="2" maxlength="2000" placeholder="Scrivi al gruppo, oppure chiedi all'assistente… (Invio per chiedere all'assistente, Maiusc+Invio per andare a capo)"></textarea>
         <div class="row">
@@ -158,6 +159,7 @@ input, textarea { font: inherit; color: var(--ink); background: var(--panel); bo
     { id: "checklist", nome: "Checklist PA", url: "https://claude.ai/artifact/6dejna1KREtvp42EAoMden" },
     { id: "agenda", nome: "Agenda", url: "https://calendar.google.com/" },
     { id: "posta", nome: "Posta", url: "https://mail.google.com/" },
+    { id: "whatsapp", nome: "WhatsApp Business", url: "https://business.whatsapp.com/" },
     { id: "riepilogo", nome: "Riepilogo mattutino", url: "https://claude.ai/artifact/424AkCGQ5jAFLXTX8ZHpbr" },
   ];
   const appName = id => APPS.find(a => a.id === id)?.nome || id;
@@ -255,7 +257,7 @@ input, textarea { font: inherit; color: var(--ink); background: var(--panel); bo
 
   // ---------- assistente
   const tools = [
-    { name: "stato_app", description: "Ultimo stato sincronizzato di una o di tutte le app GAC (magazzino, registro, scheda, checklist, agenda, posta, riepilogo). Include data dell'ultima sincronizzazione e dettagli.",
+    { name: "stato_app", description: "Ultimo stato sincronizzato di una o di tutte le app GAC (magazzino, registro, scheda, checklist, agenda, posta, whatsapp, riepilogo). Per whatsapp i dettagli contengono le conversazioni recenti dei clienti con id conversazione, mittente e ultima richiesta. Include data dell'ultima sincronizzazione e dettagli.",
       inputSchema: { type: "object", properties: { app: { type: "string", description: "id dell'app; vuoto = tutte" } } },
       execute: ({ app }) => { const ids = app ? [app] : APPS.map(a => a.id);
         return ids.map(id => { const s = stato[id]; return s ? { app: id, nome: appName(id), aggiornato: s.aggiornato ? new Date(s.aggiornato).toISOString().slice(0, 16) : null, riepilogo: s.riepilogo, punti: s.punti, dettagli: s.dettagli } : { app: id, nome: appName(id), stato: "non ancora sincronizzata" }; }); } },
@@ -266,13 +268,13 @@ input, textarea { font: inherit; color: var(--ink); background: var(--panel); bo
     { name: "elenco_richieste", description: "Richieste di aggiornamento verso le altre app, con stato (da_confermare, confermata, eseguita, errore, annullata) ed esito.",
       inputSchema: { type: "object", properties: {} },
       execute: () => richieste.slice(0, 30).map(r => ({ app: r.app, testo: r.testo, stato: r.stato, esito: r.esito || "", creata: r.creata ? new Date(r.creata).toISOString().slice(0, 16) : "" })) },
-    { name: "proponi_richiesta", description: "Prepara una richiesta di modifica per un'altra app (es. registrare uno scarico in magazzino, aggiungere una riga al registro impianti, creare un evento in agenda, aggiornare una scheda intervento). NON modifica nulla: compare nel riquadro 'Richieste alle app' e l'utente deve confermarla; viene eseguita alla sincronizzazione successiva. Scrivi il testo in modo completo e preciso (articolo, quantità, cantiere, date, cliente…).",
-      inputSchema: { type: "object", properties: { app: { type: "string", enum: ["magazzino", "registro", "scheda", "checklist", "agenda"] }, testo: { type: "string" } }, required: ["app", "testo"] },
+    { name: "proponi_richiesta", description: "Prepara una richiesta di modifica per un'altra app (es. registrare uno scarico in magazzino, aggiungere una riga al registro impianti, creare un evento in agenda, aggiornare una scheda intervento, rispondere a un cliente su WhatsApp). Per app 'whatsapp' il testo deve contenere il destinatario (nome e numero o id conversazione come da stato_app) e, dopo 'Messaggio:', il testo esatto da inviare, cortese e in italiano. NON modifica nulla e NON invia nulla: compare nel riquadro 'Richieste alle app' e l'utente deve confermarla; viene eseguita alla sincronizzazione successiva. Scrivi il testo in modo completo e preciso (articolo, quantità, cantiere, date, cliente…).",
+      inputSchema: { type: "object", properties: { app: { type: "string", enum: ["magazzino", "registro", "scheda", "checklist", "agenda", "whatsapp"] }, testo: { type: "string" } }, required: ["app", "testo"] },
       execute: async ({ app, testo }) => { if (!testo?.trim()) throw new Error("testo vuoto");
         await db.collection("richieste").add({ app, testo: String(testo).slice(0, 1000), stato: "da_confermare", creata: Date.now(), autore: myId || "" });
         return { esito: "richiesta creata, in attesa di conferma dell'utente nel riquadro Richieste" }; } },
   ];
-  const SYSTEM = () => `Sei l'assistente di coordinamento di GAC Impianti (impianti elettrici, videosorveglianza, reti). Lavori nella "Centrale", una chat condivisa dal gruppo, e conosci lo stato delle altre app: Magazzino, Registro impianti, Scheda intervento, Checklist PA (Pubblica Amministrazione), Agenda (Google Calendar), Posta (Gmail) e Riepilogo mattutino. Lo stato arriva da una sincronizzazione periodica: quando citi un dato, se è vecchio di molte ore dillo. Usa sempre gli strumenti per leggere stato e chat, non inventare numeri, nomi o date. Per cambiare qualcosa in un'altra app usa proponi_richiesta e spiega che va confermata nel riquadro "Richieste alle app" e che verrà eseguita alla prossima sincronizzazione. Rispondi in italiano, breve e pratico, testo semplice senza markdown. Oggi è ${new Date().toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`;
+  const SYSTEM = () => `Sei l'assistente di coordinamento di GAC Impianti (impianti elettrici, videosorveglianza, reti). Lavori nella "Centrale", una chat condivisa dal gruppo, e conosci lo stato delle altre app: Magazzino, Registro impianti, Scheda intervento, Checklist PA (Pubblica Amministrazione), Agenda (Google Calendar), Posta (Gmail), WhatsApp Business (messaggi dei clienti) e Riepilogo mattutino. Per rispondere a un cliente su WhatsApp prepara la risposta con proponi_richiesta (app whatsapp): non promettere date, prezzi o interventi che non risultano dai dati. Lo stato arriva da una sincronizzazione periodica: quando citi un dato, se è vecchio di molte ore dillo. Usa sempre gli strumenti per leggere stato e chat, non inventare numeri, nomi o date. Per cambiare qualcosa in un'altra app usa proponi_richiesta e spiega che va confermata nel riquadro "Richieste alle app" e che verrà eseguita alla prossima sincronizzazione. Rispondi in italiano, breve e pratico, testo semplice senza markdown. Oggi è ${new Date().toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`;
 
   let busy = false, pending = null;
   async function ask(text) {
