@@ -1,0 +1,347 @@
+<title>Centrale GAC</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: sala di coordinamento — a sinistra la chat condivisa con l'assistente, a destra lo stato di ogni app e le richieste in coda */
+:root {
+  --bg: #f3f4f2; --panel: #ffffff; --ink: #1d2327; --muted: #5d6870; --line: #d9ddd9;
+  --accent: #c27a00; --accent-ink: #ffffff; --accent-soft: #fbefd6;
+  --bot: #2d5f7a; --bot-soft: #e3eef4;
+  --ok: #2f7d4f; --ok-soft: #e1f1e7; --warn: #b26a00; --warn-soft: #fdf0d8; --bad: #b3362b; --bad-soft: #f8e1de;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15191b; --panel: #1d2326; --ink: #e6e9e7; --muted: #9aa5ab; --line: #30383c;
+  --accent: #f0a52a; --accent-ink: #1a1405; --accent-soft: #3a2c10;
+  --bot: #8cc3e0; --bot-soft: #1c2c35;
+  --ok: #6cc28f; --ok-soft: #1c3226; --warn: #f0b04a; --warn-soft: #3a2c10; --bad: #f08a7e; --bad-soft: #3d1f1c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #15191b; --panel: #1d2326; --ink: #e6e9e7; --muted: #9aa5ab; --line: #30383c;
+  --accent: #f0a52a; --accent-ink: #1a1405; --accent-soft: #3a2c10;
+  --bot: #8cc3e0; --bot-soft: #1c2c35;
+  --ok: #6cc28f; --ok-soft: #1c3226; --warn: #f0b04a; --warn-soft: #3a2c10; --bad: #f08a7e; --bad-soft: #3d1f1c; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45 }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 16px }
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: 28px; margin: 0; text-wrap: balance }
+h1 small { display: block; font-family: var(--f-mono); font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: .08em; text-transform: uppercase }
+h2 { font-family: var(--f-display); font-size: 15px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; margin: 0; color: var(--muted) }
+.hdr-r { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.status { font-size: 12px; color: var(--muted) }
+.btn { font: 600 13px var(--f-body); border-radius: 5px; padding: 8px 12px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink) }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
+.btn.bot { background: var(--bot); border-color: var(--bot); color: var(--panel) }
+.btn.small { padding: 4px 9px; font-size: 12px }
+.btn:disabled { opacity: .5; cursor: default }
+input, textarea { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; min-width: 0 }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 16px; align-items: start }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr) } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; min-width: 0 }
+.side { display: grid; gap: 16px; min-width: 0 }
+.sec-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line) }
+
+/* chat */
+.chat { display: grid; grid-template-rows: auto 1fr auto }
+.log { padding: 14px; display: grid; gap: 12px; align-content: start; overflow-y: auto; height: min(62vh, 640px); min-height: 320px }
+.msg { display: grid; gap: 2px; max-width: 82ch; min-width: 0 }
+.msg .who { font: 500 10px var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted) }
+.msg .who time { letter-spacing: 0; text-transform: none; margin-left: 6px }
+.msg .txt { white-space: pre-wrap; overflow-wrap: anywhere }
+.msg.mine { justify-self: end; text-align: left }
+.msg.mine .txt { background: var(--accent-soft); padding: 8px 12px; border-radius: 8px 8px 2px 8px }
+.msg.utente:not(.mine) .txt { background: var(--bg); padding: 8px 12px; border-radius: 8px 8px 8px 2px }
+.msg.assistente .who { color: var(--bot) }
+.msg.assistente .txt { border-left: 3px solid var(--bot); padding: 2px 0 2px 10px }
+.msg.sistema .who { color: var(--ok) }
+.msg.sistema .txt { background: var(--ok-soft); padding: 8px 12px; border-radius: 6px; font-size: 13px }
+.empty { padding: 26px 12px; text-align: center; color: var(--muted) }
+.composer { display: grid; gap: 8px; padding: 12px; border-top: 1px solid var(--line) }
+.composer textarea { resize: vertical; min-height: 44px; width: 100% }
+.composer .row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center }
+.composer .hint { font-size: 12px; color: var(--muted) }
+.chips { display: flex; flex-wrap: wrap; gap: 6px }
+.chip { font-size: 12px; border: 1px solid var(--line); border-radius: 14px; padding: 4px 10px; background: none; color: var(--ink); cursor: pointer }
+
+/* stato app */
+.apps { display: grid; }
+.app { padding: 12px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 6px }
+.app:last-child { border-bottom: 0 }
+.app-h { display: flex; justify-content: space-between; gap: 8px; align-items: baseline }
+.app-h a { font-weight: 600; color: var(--ink); text-decoration: none }
+.app-h a:hover { text-decoration: underline }
+.age { font: 400 11px var(--f-mono); color: var(--muted); white-space: nowrap }
+.age.old { color: var(--warn) }
+.app p { margin: 0; color: var(--muted); font-size: 13px }
+.facts { display: flex; flex-wrap: wrap; gap: 6px }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; background: var(--bg); color: var(--ink) }
+.pill.ok { background: var(--ok-soft); color: var(--ok) } .pill.warn { background: var(--warn-soft); color: var(--warn) } .pill.bad { background: var(--bad-soft); color: var(--bad) }
+
+/* richieste */
+.req { padding: 10px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 6px }
+.req:last-child { border-bottom: 0 }
+.req .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--muted) }
+.req .t { overflow-wrap: anywhere }
+.req .esito { font-size: 12px; color: var(--muted) }
+.req .acts { display: flex; gap: 6px; flex-wrap: wrap }
+.note { font-size: 12px; color: var(--muted); padding: 10px 14px }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1><small>GAC Impianti · coordinamento</small>Centrale</h1>
+    <div class="hdr-r">
+      <span class="status" id="status">Collegamento in corso…</span>
+      <button class="btn" id="b-sync" hidden>Sincronizza ora</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="panel chat" aria-label="Chat">
+      <div class="sec-h"><h2>Chat del gruppo</h2><span class="status" id="online"></span></div>
+      <div class="log" id="log" aria-live="polite"><div class="empty" id="log-empty">Caricamento messaggi…</div></div>
+      <form class="composer" id="composer">
+        <div class="chips" id="chips">
+          <button type="button" class="chip">Cosa c'è da fare oggi?</button>
+          <button type="button" class="chip">Cosa devo riordinare in magazzino?</button>
+          <button type="button" class="chip">Ci sono impianti in scadenza nel registro?</button>
+          <button type="button" class="chip">Riassumi le novità da tutte le app</button>
+        </div>
+        <textarea id="prompt" rows="2" maxlength="2000" placeholder="Scrivi al gruppo, oppure chiedi all'assistente… (Invio per chiedere all'assistente, Maiusc+Invio per andare a capo)"></textarea>
+        <div class="row">
+          <span class="hint" id="hint">I messaggi restano qui per tutto il gruppo.</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn" id="b-send">Invia al gruppo</button>
+            <button type="submit" class="btn bot" id="b-ask">Chiedi all'assistente</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <div class="side">
+      <section class="panel" aria-label="Stato delle app">
+        <div class="sec-h"><h2>Stato delle app</h2><span class="age" id="sync-age"></span></div>
+        <div class="apps" id="apps"></div>
+      </section>
+      <section class="panel" aria-label="Richieste alle app">
+        <div class="sec-h"><h2>Richieste alle app</h2></div>
+        <div id="reqs"><div class="empty">Nessuna richiesta. Chiedi all'assistente di aggiornare un'app: preparerà una richiesta da confermare qui.</div></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const fmtT = t => new Date(t).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const ago = t => { if (!t) return "mai"; const m = Math.round((Date.now() - t) / 6e4);
+    return m < 1 ? "adesso" : m < 60 ? m + " min fa" : m < 1440 ? Math.round(m / 60) + " h fa" : Math.round(m / 1440) + " g fa"; };
+
+  // Collegamento con l'attività pianificata che sincronizza le app (impostato alla pubblicazione)
+  const SYNC_TRIGGER = "";
+
+  const APPS = [
+    { id: "magazzino", nome: "Magazzino", url: "https://claude.ai/artifact/3KMbyJwr88sFrehoysSyNZ" },
+    { id: "registro", nome: "Registro impianti", url: "https://claude.ai/artifact/7LgWkDEoe2g4Hx7uMB41SK" },
+    { id: "scheda", nome: "Scheda intervento", url: "https://claude.ai/artifact/VfKUgYaq7mD9PM5jX16yY8" },
+    { id: "checklist", nome: "Checklist PA", url: "https://claude.ai/artifact/6dejna1KREtvp42EAoMden" },
+    { id: "agenda", nome: "Agenda", url: "https://calendar.google.com/" },
+    { id: "posta", nome: "Posta", url: "https://mail.google.com/" },
+    { id: "riepilogo", nome: "Riepilogo mattutino", url: "https://claude.ai/artifact/424AkCGQ5jAFLXTX8ZHpbr" },
+  ];
+  const appName = id => APPS.find(a => a.id === id)?.nome || id;
+
+  let db = null, user = null, sample = null, mcp = null, myId = null;
+  let chat = [], stato = {}, richieste = [], loaded = { chat: false, stato: false };
+  const names = {};
+
+  // ---------- render
+  function renderChat() {
+    const log = $("#log"), atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+    log.replaceChildren();
+    if (!chat.length) { const e = el("div", "empty", loaded.chat ? "Ancora nessun messaggio. Scrivi al gruppo o fai una domanda all'assistente." : "Caricamento messaggi…"); log.append(e); }
+    for (const m of chat) log.append(msgNode(m));
+    if (pending) log.append(pending);
+    if (atBottom || pending) log.scrollTop = log.scrollHeight;
+    resolveNames();
+  }
+  function msgNode(m) {
+    const d = el("div", "msg " + (m.tipo || "utente") + (m.tipo === "utente" && m.autore && m.autore === myId ? " mine" : ""));
+    const who = el("div", "who");
+    who.append(m.tipo === "assistente" ? "Assistente" : m.tipo === "sistema" ? "Sincronizzazione" : (m.autore === myId ? "Tu" : (names[m.autore] || "Collega")));
+    const t = el("time", null, m.ts ? fmtT(m.ts) : ""); who.append(t);
+    if (m.tipo === "utente" && m.autore !== myId) who.dataset.uid = m.autore || "";
+    d.append(who, el("div", "txt", m.testo || ""));
+    return d;
+  }
+  async function resolveNames() {
+    if (!user?.profiles) return;
+    const ids = [...new Set(chat.filter(m => m.tipo === "utente").map(m => m.autore).filter(id => id && id !== myId && !(id in names)))];
+    if (!ids.length) return;
+    try { const ps = await user.profiles(ids); ids.forEach(id => names[id] = ps?.[id]?.name || "Collega");
+      document.querySelectorAll("[data-uid]").forEach(w => { const t = w.querySelector("time"); w.firstChild.textContent = names[w.dataset.uid] || "Collega"; if (t) w.append(t); }); } catch {}
+  }
+
+  function renderApps() {
+    const box = $("#apps"); box.replaceChildren();
+    let last = 0;
+    for (const a of APPS) {
+      const s = stato[a.id]; if (s?.aggiornato > last) last = s.aggiornato;
+      const card = el("div", "app"), h = el("div", "app-h");
+      const link = el("a", null, a.nome); link.href = a.url; link.target = "_blank"; link.rel = "noopener";
+      const age = el("span", "age" + (s?.aggiornato && Date.now() - s.aggiornato > 864e5 ? " old" : ""), s ? ago(s.aggiornato) : "");
+      h.append(link, age); card.append(h);
+      card.append(el("p", null, s?.riepilogo || (loaded.stato ? "Non ancora sincronizzata." : "…")));
+      if (Array.isArray(s?.punti) && s.punti.length) {
+        const f = el("div", "facts");
+        s.punti.slice(0, 6).forEach(p => f.append(el("span", "pill " + (["ok", "warn", "bad"].includes(p.livello) ? p.livello : ""), String(p.testo || ""))));
+        card.append(f);
+      }
+      box.append(card);
+    }
+    $("#sync-age").textContent = last ? "sincronizzato " + ago(last) : "";
+  }
+
+  const ST = { da_confermare: ["warn", "Da confermare"], confermata: ["ok", "Confermata · in coda"], eseguita: ["ok", "Eseguita"], errore: ["bad", "Non riuscita"], annullata: ["", "Annullata"] };
+  function renderReqs() {
+    const box = $("#reqs"); box.replaceChildren();
+    const list = richieste.filter(r => r.stato !== "annullata" || Date.now() - (r.creata || 0) < 864e5).slice(0, 30);
+    if (!list.length) { box.append(el("div", "empty", "Nessuna richiesta. Chiedi all'assistente di aggiornare un'app: preparerà una richiesta da confermare qui.")); return; }
+    for (const r of list) {
+      const [k, l] = ST[r.stato] || ["", r.stato];
+      const row = el("div", "req"), meta = el("div", "meta");
+      meta.append(el("span", "pill " + k, l), el("b", null, appName(r.app)), el("span", null, r.creata ? fmtT(r.creata) : ""));
+      row.append(meta, el("div", "t", r.testo || ""));
+      if (r.esito) row.append(el("div", "esito", r.esito));
+      if (r.stato === "da_confermare") {
+        const acts = el("div", "acts");
+        const ok = el("button", "btn primary small", "Conferma"), no = el("button", "btn small", "Annulla");
+        ok.type = no.type = "button";
+        ok.onclick = () => setReq(r.id, "confermata", ok, no); no.onclick = () => setReq(r.id, "annullata", ok, no);
+        acts.append(ok, no); row.append(acts);
+      } else if (r.stato === "confermata") {
+        row.append(el("div", "esito", "Verrà eseguita alla prossima sincronizzazione."));
+      }
+      box.append(row);
+    }
+  }
+  async function setReq(id, st, ...btns) {
+    btns.forEach(b => b.disabled = true);
+    try { await db.collection("richieste").doc(id).update({ stato: st, decisa: Date.now(), decisoDa: myId || "" }); }
+    catch (e) { btns.forEach(b => b.disabled = false); $("#status").textContent = errMsg(e); }
+  }
+  const errMsg = e => e?.code === "permission_denied" ? "Non hai i permessi per scrivere qui." : (e?.message || "Operazione non riuscita.");
+
+  // ---------- invio messaggi
+  async function post(testo, tipo) {
+    return db.collection("chat").add({ testo: String(testo).slice(0, 4000), tipo, autore: tipo === "utente" ? (myId || "") : tipo, ts: Date.now() });
+  }
+  async function sendGroup() {
+    const t = $("#prompt").value.trim(); if (!t || !db) return;
+    $("#prompt").value = "";
+    try { await post(t, "utente"); } catch (e) { $("#prompt").value = t; $("#hint").textContent = errMsg(e); }
+  }
+
+  // ---------- assistente
+  const tools = [
+    { name: "stato_app", description: "Ultimo stato sincronizzato di una o di tutte le app GAC (magazzino, registro, scheda, checklist, agenda, posta, riepilogo). Include data dell'ultima sincronizzazione e dettagli.",
+      inputSchema: { type: "object", properties: { app: { type: "string", description: "id dell'app; vuoto = tutte" } } },
+      execute: ({ app }) => { const ids = app ? [app] : APPS.map(a => a.id);
+        return ids.map(id => { const s = stato[id]; return s ? { app: id, nome: appName(id), aggiornato: s.aggiornato ? new Date(s.aggiornato).toISOString().slice(0, 16) : null, riepilogo: s.riepilogo, punti: s.punti, dettagli: s.dettagli } : { app: id, nome: appName(id), stato: "non ancora sincronizzata" }; }); } },
+    { name: "cerca_chat", description: "Cerca nei messaggi della chat del gruppo (ultimi 200). Testo vuoto = ultimi messaggi.",
+      inputSchema: { type: "object", properties: { testo: { type: "string" } } },
+      execute: ({ testo }) => { const t = String(testo || "").toLowerCase();
+        return chat.filter(m => !t || String(m.testo).toLowerCase().includes(t)).slice(-30).map(m => ({ quando: m.ts ? new Date(m.ts).toISOString().slice(0, 16) : "", chi: m.tipo === "utente" ? (m.autore === myId ? "utente attuale" : names[m.autore] || "collega") : m.tipo, testo: String(m.testo).slice(0, 600) })); } },
+    { name: "elenco_richieste", description: "Richieste di aggiornamento verso le altre app, con stato (da_confermare, confermata, eseguita, errore, annullata) ed esito.",
+      inputSchema: { type: "object", properties: {} },
+      execute: () => richieste.slice(0, 30).map(r => ({ app: r.app, testo: r.testo, stato: r.stato, esito: r.esito || "", creata: r.creata ? new Date(r.creata).toISOString().slice(0, 16) : "" })) },
+    { name: "proponi_richiesta", description: "Prepara una richiesta di modifica per un'altra app (es. registrare uno scarico in magazzino, aggiungere una riga al registro impianti, creare un evento in agenda, aggiornare una scheda intervento). NON modifica nulla: compare nel riquadro 'Richieste alle app' e l'utente deve confermarla; viene eseguita alla sincronizzazione successiva. Scrivi il testo in modo completo e preciso (articolo, quantità, cantiere, date, cliente…).",
+      inputSchema: { type: "object", properties: { app: { type: "string", enum: ["magazzino", "registro", "scheda", "checklist", "agenda"] }, testo: { type: "string" } }, required: ["app", "testo"] },
+      execute: async ({ app, testo }) => { if (!testo?.trim()) throw new Error("testo vuoto");
+        await db.collection("richieste").add({ app, testo: String(testo).slice(0, 1000), stato: "da_confermare", creata: Date.now(), autore: myId || "" });
+        return { esito: "richiesta creata, in attesa di conferma dell'utente nel riquadro Richieste" }; } },
+  ];
+  const SYSTEM = () => `Sei l'assistente di coordinamento di GAC Impianti (impianti elettrici, videosorveglianza, reti). Lavori nella "Centrale", una chat condivisa dal gruppo, e conosci lo stato delle altre app: Magazzino, Registro impianti, Scheda intervento, Checklist PA (Pubblica Amministrazione), Agenda (Google Calendar), Posta (Gmail) e Riepilogo mattutino. Lo stato arriva da una sincronizzazione periodica: quando citi un dato, se è vecchio di molte ore dillo. Usa sempre gli strumenti per leggere stato e chat, non inventare numeri, nomi o date. Per cambiare qualcosa in un'altra app usa proponi_richiesta e spiega che va confermata nel riquadro "Richieste alle app" e che verrà eseguita alla prossima sincronizzazione. Rispondi in italiano, breve e pratico, testo semplice senza markdown. Oggi è ${new Date().toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`;
+
+  let busy = false, pending = null;
+  async function ask(text) {
+    text = String(text || "").trim(); if (!text || busy || !db) return;
+    if (!sample) { $("#hint").textContent = "L'assistente non è disponibile in questa visualizzazione: il messaggio va solo al gruppo."; }
+    busy = true; $("#b-ask").disabled = $("#b-send").disabled = true; $("#prompt").value = "";
+    try { await post(text, "utente"); } catch (e) { busy = false; $("#b-ask").disabled = $("#b-send").disabled = false; $("#prompt").value = text; $("#hint").textContent = errMsg(e); return; }
+    if (!sample) { busy = false; $("#b-ask").disabled = $("#b-send").disabled = false; return; }
+    pending = el("div", "msg assistente"); pending.append(el("div", "who", "Assistente"), el("div", "txt", "Controllo le app…"));
+    renderChat();
+    const recent = chat.slice(-16).map(m => `[${m.ts ? fmtT(m.ts) : ""}] ${m.tipo === "utente" ? (m.autore === myId ? "Utente" : names[m.autore] || "Collega") : m.tipo === "assistente" ? "Assistente" : "Sincronizzazione"}: ${String(m.testo).slice(0, 500)}`).join("\n");
+    const input = `${SYSTEM()}\n\nUltimi messaggi della chat:\n${recent || "(nessuno)"}\n\nNuova domanda dell'utente: ${text}`;
+    let answer = "";
+    try {
+      const r = await sample([{ role: "user", content: input }], { tools, cache: false,
+        onText: ({ text: t }) => { if (t && pending) { pending.lastChild.textContent = t; $("#log").scrollTop = $("#log").scrollHeight; } } });
+      answer = (r.text || "").trim() || "Fatto.";
+    } catch (e) {
+      answer = e?.code === "not_granted" ? "" : e?.code === "rate_limited" ? "Troppe richieste ravvicinate: riprova tra qualche istante." : "Non sono riuscito a rispondere: " + (e?.message || "errore sconosciuto");
+      if (e?.code === "not_granted") $("#hint").textContent = "Non hai autorizzato l'assistente per questa pagina.";
+    }
+    pending = null;
+    try { if (answer) await post(answer, "assistente"); } catch {}
+    busy = false; $("#b-ask").disabled = $("#b-send").disabled = false; renderChat();
+  }
+
+  $("#composer").addEventListener("submit", e => { e.preventDefault(); ask($("#prompt").value); });
+  $("#b-send").addEventListener("click", sendGroup);
+  $("#prompt").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask($("#prompt").value); } });
+  $("#chips").addEventListener("click", e => { const c = e.target.closest(".chip"); if (c) ask(c.textContent); });
+
+  // ---------- sincronizza ora (facoltativo: richiede il connettore Claude Code Remote)
+  async function setupSync() {
+    if (!SYNC_TRIGGER || !mcp) return;
+    try { const l = await mcp.listTools("Claude Code Remote");
+      const ok = (l?.servers || []).some(s => (s.tools || []).some(t => (t.name || t) === "fire_trigger"));
+      if (!ok) return; } catch { return; }
+    const b = $("#b-sync"); b.hidden = false;
+    b.onclick = async () => {
+      b.disabled = true; b.textContent = "Avvio…";
+      try { await mcp.callTool("Claude Code Remote", "fire_trigger", { trigger_id: SYNC_TRIGGER, text: "Sincronizzazione richiesta a mano dalla Centrale." });
+        b.textContent = "Avviata: qualche minuto";
+      } catch (e) {
+        b.textContent = e?.code === "needs_reauth" ? "Ricollega Claude Code" : e?.code === "blocked_by_policy" ? "Non disponibile" : "Non avviata";
+        setTimeout(() => { b.disabled = false; b.textContent = "Sincronizza ora"; }, 8000); return;
+      }
+      setTimeout(() => { b.disabled = false; b.textContent = "Sincronizza ora"; }, 120000);
+    };
+  }
+
+  // ---------- avvio
+  renderChat(); renderApps();
+  (async () => {
+    const c = window.claude;
+    if (!c?.use) { $("#status").textContent = "Apri la pagina su claude.ai per usare la Centrale."; return; }
+    [db, user, sample, mcp] = await Promise.all([c.use("db"), c.use("user"), c.use("sample"), c.use("mcp")]);
+    if (!db) { $("#status").textContent = "Accedi a claude.ai per vedere la Centrale."; return; }
+    try { myId = await user?.id?.() } catch {}
+    if (!sample) $("#b-ask").hidden = true;
+    const timer = setTimeout(() => { $("#status").textContent = "L'archivio non risponde ancora: i dati potrebbero non essere aggiornati."; }, 10000);
+    db.collection("chat").orderBy("ts", "desc").limit(200).onSnapshot(s => {
+      clearTimeout(timer); chat = s.docs.map(d => ({ id: d.id, ...d.data() })).reverse(); loaded.chat = true;
+      $("#status").textContent = "Chat condivisa · in tempo reale"; renderChat(); },
+      e => { clearTimeout(timer); loaded.chat = true; $("#status").textContent = "Impossibile leggere la chat (" + (e?.code || "errore") + ")."; renderChat(); });
+    db.collection("stato").onSnapshot(s => { stato = {}; s.docs.forEach(d => stato[d.id] = d.data()); loaded.stato = true; renderApps(); },
+      () => { loaded.stato = true; renderApps(); });
+    db.collection("richieste").orderBy("creata", "desc").limit(60).onSnapshot(s => { richieste = s.docs.map(d => ({ id: d.id, ...d.data() })); renderReqs(); }, () => {});
+    setInterval(renderApps, 60000);
+    setupSync();
+  })();
+})();
+</script>
