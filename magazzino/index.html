@@ -1,0 +1,439 @@
+<title>Magazzino GAC</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: banco di lavoro — barra superiore con indicatori, schede Inventario / Movimenti / Assistente, tabelle dense a scorrimento interno */
+:root {
+  --bg: #f3f4f2; --panel: #ffffff; --ink: #1d2327; --muted: #5d6870; --line: #d9ddd9;
+  --accent: #c27a00; --accent-ink: #ffffff; --accent-soft: #fbefd6;
+  --ok: #2f7d4f; --ok-soft: #e1f1e7; --warn: #b26a00; --warn-soft: #fdf0d8; --bad: #b3362b; --bad-soft: #f8e1de;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15191b; --panel: #1d2326; --ink: #e6e9e7; --muted: #9aa5ab; --line: #30383c;
+  --accent: #f0a52a; --accent-ink: #1a1405; --accent-soft: #3a2c10;
+  --ok: #6cc28f; --ok-soft: #1c3226; --warn: #f0b04a; --warn-soft: #3a2c10; --bad: #f08a7e; --bad-soft: #3d1f1c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #15191b; --panel: #1d2326; --ink: #e6e9e7; --muted: #9aa5ab; --line: #30383c;
+  --accent: #f0a52a; --accent-ink: #1a1405; --accent-soft: #3a2c10;
+  --ok: #6cc28f; --ok-soft: #1c3226; --warn: #f0b04a; --warn-soft: #3a2c10; --bad: #f08a7e; --bad-soft: #3d1f1c; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45 }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 18px }
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: 28px; letter-spacing: .01em; margin: 0; text-wrap: balance }
+h1 small { display: block; font-family: var(--f-mono); font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: .08em; text-transform: uppercase }
+.status { font-size: 12px; color: var(--muted) }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px }
+.kpi b { display: block; font-family: var(--f-display); font-size: 24px; font-variant-numeric: tabular-nums }
+.kpi span { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted) }
+.kpi.alert b { color: var(--bad) }
+@media (max-width: 640px) { .kpis { grid-template-columns: repeat(2, minmax(0,1fr)) } }
+
+nav.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); overflow-x: auto }
+nav.tabs button { font: 600 14px var(--f-body); background: none; border: 0; color: var(--muted); padding: 10px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent) }
+nav.tabs .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: var(--bad); color: var(--panel); font-size: 11px; text-align: center }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+input, select, textarea { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; min-width: 0 }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+.toolbar input[type=search] { flex: 1 1 220px }
+.btn { font: 600 13px var(--f-body); border-radius: 5px; padding: 8px 12px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink) }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
+.btn.ghost { border-color: transparent; background: none; color: var(--muted); padding: 4px 8px }
+.btn:disabled { opacity: .5; cursor: default }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px }
+.scroll { overflow-x: auto }
+table { width: 100%; border-collapse: collapse; font-size: 13px }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; padding: 10px; border-bottom: 1px solid var(--line); white-space: nowrap }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle }
+tr:last-child td { border-bottom: 0 }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.code { font-family: var(--f-mono); font-size: 12px; color: var(--muted) }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap }
+.pill.ok { background: var(--ok-soft); color: var(--ok) } .pill.low { background: var(--warn-soft); color: var(--warn) } .pill.out { background: var(--bad-soft); color: var(--bad) }
+.pill.in { background: var(--ok-soft); color: var(--ok) } .pill.outm { background: var(--bad-soft); color: var(--bad) }
+.rowact { display: flex; gap: 4px; justify-content: flex-end }
+.empty { padding: 28px 16px; text-align: center; color: var(--muted) }
+
+dialog { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); padding: 0; width: min(460px, calc(100vw - 32px)) }
+dialog::backdrop { background: rgb(0 0 0 / .35) }
+dialog form { display: grid; gap: 12px; padding: 18px }
+dialog h2 { font-family: var(--f-display); font-size: 20px; margin: 0 }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+label { display: grid; gap: 4px; font-size: 12px; color: var(--muted) }
+.actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap }
+.err { color: var(--bad); font-size: 12px; min-height: 1em }
+
+/* Assistente */
+.chat { display: grid; grid-template-rows: 1fr auto; min-height: 460px }
+.log { padding: 16px; display: grid; gap: 12px; align-content: start; overflow-y: auto; max-height: 60vh }
+.msg { max-width: 78ch; white-space: pre-wrap; overflow-wrap: anywhere }
+.msg.user { justify-self: end; background: var(--accent-soft); padding: 8px 12px; border-radius: 8px 8px 2px 8px }
+.msg.bot { padding: 2px 0 }
+.msg.bot::before { content: "ASSISTENTE"; display: block; font: 500 10px var(--f-mono); letter-spacing: .1em; color: var(--accent); margin-bottom: 2px }
+.proposal { border: 1px dashed var(--accent); border-radius: 6px; padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between }
+.proposal.done { border-style: solid; border-color: var(--line); color: var(--muted) }
+.composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); flex-wrap: wrap }
+.composer textarea { flex: 1 1 260px; resize: vertical; min-height: 42px }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px }
+.chip { font-size: 12px; border: 1px solid var(--line); border-radius: 14px; padding: 4px 10px; background: none; color: var(--ink); cursor: pointer }
+.note { font-size: 12px; color: var(--muted); padding: 12px 16px }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1><small>GAC Impianti · gestione scorte</small>Magazzino</h1>
+    <div class="status" id="status">Collegamento all'archivio…</div>
+  </header>
+
+  <section class="kpis" aria-label="Riepilogo">
+    <div class="kpi"><span>Articoli</span><b id="k-art">–</b></div>
+    <div class="kpi"><span>Valore a magazzino</span><b id="k-val">–</b></div>
+    <div class="kpi alert"><span>Sotto scorta</span><b id="k-low">–</b></div>
+    <div class="kpi"><span>Movimenti 7 gg</span><b id="k-mov">–</b></div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="t-inv" aria-selected="true" data-view="inv">Inventario</button>
+    <button role="tab" id="t-mov" aria-selected="false" data-view="mov">Movimenti</button>
+    <button role="tab" id="t-ai" aria-selected="false" data-view="ai">Assistente</button>
+  </nav>
+
+  <section id="v-inv" class="view" style="display:grid;gap:12px">
+    <div class="toolbar">
+      <input type="search" id="q" placeholder="Cerca per nome, codice, ubicazione…">
+      <select id="fcat"><option value="">Tutte le categorie</option></select>
+      <label style="display:flex;align-items:center;gap:6px;color:var(--ink)"><input type="checkbox" id="flow"> Solo sotto scorta</label>
+      <button class="btn primary" id="b-new">+ Nuovo articolo</button>
+    </div>
+    <div class="panel scroll">
+      <table>
+        <thead><tr><th>Codice</th><th>Articolo</th><th>Categoria</th><th>Ubicazione</th><th class="num">Giacenza</th><th class="num">Scorta min.</th><th>Stato</th><th></th></tr></thead>
+        <tbody id="inv-body"></tbody>
+      </table>
+      <div class="empty" id="inv-empty" hidden></div>
+    </div>
+  </section>
+
+  <section id="v-mov" class="view" hidden style="display:grid;gap:12px">
+    <div class="toolbar">
+      <input type="search" id="qm" placeholder="Filtra per articolo, cantiere o causale…">
+      <button class="btn primary" id="b-mov">+ Registra movimento</button>
+    </div>
+    <div class="panel scroll">
+      <table>
+        <thead><tr><th>Data</th><th>Tipo</th><th>Articolo</th><th class="num">Q.tà</th><th>Cantiere / causale</th><th>Operatore</th></tr></thead>
+        <tbody id="mov-body"></tbody>
+      </table>
+      <div class="empty" id="mov-empty" hidden></div>
+    </div>
+  </section>
+
+  <section id="v-ai" class="view" hidden>
+    <div class="panel chat">
+      <div>
+        <div class="log" id="log" aria-live="polite">
+          <div class="msg bot">Ciao. Posso cercare articoli, dirti cosa è sotto scorta, preparare una lista di riordino o registrare carichi e scarichi. Le operazioni che modificano il magazzino ti chiedo sempre di confermarle.</div>
+        </div>
+        <div class="chips" id="chips">
+          <button class="chip">Cosa devo riordinare?</button>
+          <button class="chip">Quante telecamere bullet abbiamo?</button>
+          <button class="chip">Scarica 50 m di cavo UTP per il cantiere Municipio</button>
+          <button class="chip">Riepilogo movimenti dell'ultima settimana</button>
+        </div>
+      </div>
+      <form class="composer" id="composer">
+        <textarea id="prompt" rows="2" placeholder="Scrivi una richiesta… (Invio per inviare)"></textarea>
+        <button class="btn primary" id="send">Invia</button>
+      </form>
+      <div class="note" id="ai-note" hidden></div>
+    </div>
+  </section>
+</div>
+
+<dialog id="d-art">
+  <form id="f-art" method="dialog">
+    <h2 id="d-art-title">Nuovo articolo</h2>
+    <div class="grid2">
+      <label>Codice<input id="a-codice" required maxlength="40"></label>
+      <label>Categoria<input id="a-cat" list="cats" maxlength="40"></label>
+    </div>
+    <label>Descrizione<input id="a-nome" required maxlength="120"></label>
+    <div class="grid2">
+      <label>Unità<select id="a-um"><option>pz</option><option>m</option><option>conf</option><option>kg</option><option>rotolo</option></select></label>
+      <label>Ubicazione<input id="a-ubi" placeholder="es. Scaffale B2" maxlength="40"></label>
+    </div>
+    <div class="grid2">
+      <label>Scorta minima<input id="a-min" type="number" min="0" step="any" value="0"></label>
+      <label>Prezzo unitario €<input id="a-prezzo" type="number" min="0" step="0.01" value="0"></label>
+    </div>
+    <label id="a-qta-wrap">Giacenza iniziale<input id="a-qta" type="number" min="0" step="any" value="0"></label>
+    <div class="err" id="a-err"></div>
+    <div class="actions">
+      <button class="btn ghost" id="a-del" type="button" hidden>Elimina articolo</button>
+      <button class="btn" type="button" data-close>Annulla</button>
+      <button class="btn primary" id="a-save">Salva</button>
+    </div>
+  </form>
+</dialog>
+<datalist id="cats"></datalist>
+
+<dialog id="d-mov">
+  <form id="f-mov" method="dialog">
+    <h2>Registra movimento</h2>
+    <label>Articolo<select id="m-art" required></select></label>
+    <div class="grid2">
+      <label>Tipo<select id="m-tipo"><option value="carico">Carico (entrata)</option><option value="scarico">Scarico (uscita)</option></select></label>
+      <label>Quantità<input id="m-qta" type="number" min="0.01" step="any" required></label>
+    </div>
+    <label>Cantiere / causale<input id="m-causale" placeholder="es. Cantiere Municipio, reso fornitore…" maxlength="120"></label>
+    <div class="err" id="m-err"></div>
+    <div class="actions">
+      <button class="btn" type="button" data-close>Annulla</button>
+      <button class="btn primary">Registra</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="d-confirm">
+  <form method="dialog" style="gap:16px">
+    <h2>Eliminare l'articolo?</h2>
+    <p id="c-text" style="margin:0"></p>
+    <div class="actions"><button class="btn" value="no">Annulla</button><button class="btn primary" value="yes">Elimina</button></div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const fmtN = n => Number(n || 0).toLocaleString("it-IT", { maximumFractionDigits: 2 });
+  const fmtE = n => Number(n || 0).toLocaleString("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  const fmtD = t => new Date(t).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+  let db = null, user = null, sample = null, myId = null;
+  let articoli = [], movimenti = [], loaded = { a: false, m: false };
+  const names = {};
+
+  // ---- tabs
+  document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
+  function show(v) {
+    document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === v)));
+    document.querySelectorAll(".view").forEach(s => s.hidden = s.id !== "v-" + v);
+    try { localStorage.setItem("mag-tab", v) } catch {}
+  }
+  try { const t = localStorage.getItem("mag-tab"); if (t) show(t) } catch {}
+
+  const stato = a => { const q = +a.quantita || 0, m = +a.scortaMin || 0;
+    return q <= 0 ? ["out", "Esaurito"] : q <= m ? ["low", "Sotto scorta"] : ["ok", "Disponibile"]; };
+
+  // ---- render
+  function render() {
+    const low = articoli.filter(a => stato(a)[0] !== "ok");
+    const week = Date.now() - 7 * 864e5;
+    $("#k-art").textContent = fmtN(articoli.length);
+    $("#k-val").textContent = fmtE(articoli.reduce((s, a) => s + (+a.quantita || 0) * (+a.prezzo || 0), 0));
+    $("#k-low").textContent = fmtN(low.length);
+    $("#k-mov").textContent = fmtN(movimenti.filter(m => m.ts >= week).length);
+    $("#t-inv").innerHTML = "Inventario" + (low.length ? `<span class="badge">${low.length}</span>` : "");
+
+    const cats = [...new Set(articoli.map(a => a.categoria).filter(Boolean))].sort();
+    const fc = $("#fcat"), cur = fc.value;
+    fc.innerHTML = '<option value="">Tutte le categorie</option>' + cats.map(c => `<option${c === cur ? " selected" : ""}>${esc(c)}</option>`).join("");
+    $("#cats").innerHTML = cats.map(c => `<option value="${esc(c)}">`).join("");
+
+    const q = $("#q").value.trim().toLowerCase(), onlyLow = $("#flow").checked;
+    const rows = articoli.filter(a => (!cur || a.categoria === cur) && (!onlyLow || stato(a)[0] !== "ok") &&
+      (!q || [a.codice, a.nome, a.ubicazione, a.categoria].join(" ").toLowerCase().includes(q)))
+      .sort((x, y) => String(x.nome).localeCompare(String(y.nome), "it"));
+    $("#inv-body").innerHTML = rows.map(a => { const [k, l] = stato(a); return `<tr>
+      <td class="code">${esc(a.codice)}</td><td>${esc(a.nome)}</td><td>${esc(a.categoria)}</td><td>${esc(a.ubicazione)}</td>
+      <td class="num"><b>${fmtN(a.quantita)}</b> ${esc(a.um)}</td><td class="num">${fmtN(a.scortaMin)}</td>
+      <td><span class="pill ${k}">${l}</span></td>
+      <td><div class="rowact"><button class="btn ghost" data-mv="${esc(a.id)}">Movimento</button><button class="btn ghost" data-ed="${esc(a.id)}">Modifica</button></div></td></tr>`; }).join("");
+    const ie = $("#inv-empty");
+    ie.hidden = rows.length > 0;
+    ie.textContent = !loaded.a ? "Caricamento articoli…" : articoli.length ? "Nessun articolo corrisponde ai filtri." : "Il magazzino è vuoto. Aggiungi il primo articolo con «+ Nuovo articolo».";
+
+    const qm = $("#qm").value.trim().toLowerCase();
+    const mv = movimenti.filter(m => !qm || [m.articoloNome, m.articoloCodice, m.causale].join(" ").toLowerCase().includes(qm)).slice(0, 300);
+    $("#mov-body").innerHTML = mv.map(m => `<tr><td class="code">${fmtD(m.ts)}</td>
+      <td><span class="pill ${m.tipo === "carico" ? "in" : "outm"}">${m.tipo === "carico" ? "Carico" : "Scarico"}</span></td>
+      <td>${esc(m.articoloNome)} <span class="code">${esc(m.articoloCodice)}</span></td>
+      <td class="num">${m.tipo === "carico" ? "+" : "−"}${fmtN(m.qta)} ${esc(m.um)}</td><td>${esc(m.causale)}</td>
+      <td data-uid="${esc(m.utente)}">${esc(names[m.utente] || "")}</td></tr>`).join("");
+    const me = $("#mov-empty");
+    me.hidden = mv.length > 0;
+    me.textContent = !loaded.m ? "Caricamento movimenti…" : movimenti.length ? "Nessun movimento corrisponde al filtro." : "Nessun movimento registrato. Usa «+ Registra movimento» o chiedi all'assistente.";
+    resolveNames();
+  }
+  async function resolveNames() {
+    if (!user?.profiles) return;
+    const ids = [...new Set(movimenti.map(m => m.utente).filter(id => id && !(id in names)))];
+    if (!ids.length) return;
+    try { const ps = await user.profiles(ids); ids.forEach(id => names[id] = ps?.[id]?.name || "Utente");
+      document.querySelectorAll("[data-uid]").forEach(td => td.textContent = names[td.dataset.uid] || ""); } catch {}
+  }
+  ["#q", "#qm"].forEach(s => $(s).addEventListener("input", render));
+  ["#fcat", "#flow"].forEach(s => $(s).addEventListener("change", render));
+
+  // ---- data ops
+  const byId = id => articoli.find(a => a.id === id);
+  async function registraMovimento(artId, tipo, qta, causale) {
+    const a = byId(artId);
+    if (!a) throw new Error("Articolo non trovato.");
+    qta = Number(qta);
+    if (!(qta > 0)) throw new Error("La quantità deve essere maggiore di zero.");
+    if (tipo !== "carico" && tipo !== "scarico") throw new Error("Tipo non valido.");
+    const nuova = (+a.quantita || 0) + (tipo === "carico" ? qta : -qta);
+    if (nuova < 0) throw new Error(`Giacenza insufficiente: disponibili ${fmtN(a.quantita)} ${a.um}.`);
+    await db.collection("articoli").doc(a.id).update({ quantita: nuova, aggiornato: Date.now() });
+    await db.collection("movimenti").add({ articoloId: a.id, articoloNome: a.nome, articoloCodice: a.codice, um: a.um || "pz",
+      tipo, qta, causale: String(causale || "").slice(0, 120), ts: Date.now(), utente: myId || "" });
+    return nuova;
+  }
+  const errMsg = e => e?.code === "permission_denied" ? "Non hai i permessi per modificare il magazzino." : (e?.message || "Operazione non riuscita.");
+
+  // ---- dialogs
+  document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => b.closest("dialog").close()));
+  let editing = null;
+  function openArt(a) {
+    editing = a || null;
+    $("#d-art-title").textContent = a ? "Modifica articolo" : "Nuovo articolo";
+    $("#a-codice").value = a?.codice || ""; $("#a-nome").value = a?.nome || ""; $("#a-cat").value = a?.categoria || "";
+    $("#a-um").value = a?.um || "pz"; $("#a-ubi").value = a?.ubicazione || ""; $("#a-min").value = a?.scortaMin ?? 0;
+    $("#a-prezzo").value = a?.prezzo ?? 0; $("#a-qta").value = 0; $("#a-qta-wrap").hidden = !!a; $("#a-del").hidden = !a;
+    $("#a-err").textContent = ""; $("#d-art").showModal();
+  }
+  $("#b-new").addEventListener("click", () => db ? openArt() : null);
+  $("#f-art").addEventListener("submit", async e => {
+    e.preventDefault();
+    const codice = $("#a-codice").value.trim();
+    if (articoli.some(a => a.codice.toLowerCase() === codice.toLowerCase() && a.id !== editing?.id)) { $("#a-err").textContent = "Esiste già un articolo con questo codice."; return; }
+    const data = { codice, nome: $("#a-nome").value.trim(), categoria: $("#a-cat").value.trim(), um: $("#a-um").value,
+      ubicazione: $("#a-ubi").value.trim(), scortaMin: +$("#a-min").value || 0, prezzo: +$("#a-prezzo").value || 0, aggiornato: Date.now() };
+    $("#a-save").disabled = true;
+    try {
+      if (editing) await db.collection("articoli").doc(editing.id).update(data);
+      else await db.collection("articoli").add({ ...data, quantita: +$("#a-qta").value || 0 });
+      $("#d-art").close();
+    } catch (err) { $("#a-err").textContent = errMsg(err) } finally { $("#a-save").disabled = false }
+  });
+  $("#a-del").addEventListener("click", () => {
+    $("#c-text").textContent = `«${editing.nome}» verrà rimosso dall'inventario. I movimenti già registrati restano nello storico.`;
+    $("#d-confirm").returnValue = ""; $("#d-confirm").showModal();
+  });
+  $("#d-confirm").addEventListener("close", async () => {
+    if ($("#d-confirm").returnValue !== "yes" || !editing) return;
+    try { await db.collection("articoli").doc(editing.id).delete(); $("#d-art").close(); } catch (err) { $("#a-err").textContent = errMsg(err) }
+  });
+
+  function openMov(id) {
+    if (!articoli.length) return;
+    $("#m-art").innerHTML = [...articoli].sort((x, y) => String(x.nome).localeCompare(String(y.nome), "it"))
+      .map(a => `<option value="${esc(a.id)}"${a.id === id ? " selected" : ""}>${esc(a.nome)} (${fmtN(a.quantita)} ${esc(a.um)})</option>`).join("");
+    $("#m-qta").value = ""; $("#m-causale").value = ""; $("#m-err").textContent = ""; $("#d-mov").showModal();
+  }
+  $("#b-mov").addEventListener("click", () => openMov());
+  $("#f-mov").addEventListener("submit", async e => {
+    e.preventDefault();
+    try { await registraMovimento($("#m-art").value, $("#m-tipo").value, $("#m-qta").value, $("#m-causale").value); $("#d-mov").close(); }
+    catch (err) { $("#m-err").textContent = errMsg(err) }
+  });
+  $("#inv-body").addEventListener("click", e => {
+    const mv = e.target.closest("[data-mv]"), ed = e.target.closest("[data-ed]");
+    if (mv) openMov(mv.dataset.mv); if (ed) openArt(byId(ed.dataset.ed));
+  });
+
+  // ---- assistente
+  const history = [];
+  const log = $("#log");
+  function addMsg(cls, text) { const d = document.createElement("div"); d.className = "msg " + cls; d.textContent = text; log.append(d); log.scrollTop = log.scrollHeight; return d; }
+  function addProposal(p) {
+    const a = byId(p.articoloId);
+    const box = document.createElement("div"); box.className = "proposal";
+    const txt = document.createElement("div");
+    txt.innerHTML = `<b>${p.tipo === "carico" ? "Carico" : "Scarico"}</b> di ${fmtN(p.quantita)} ${esc(a?.um)} · ${esc(a?.nome)}${p.causale ? " · " + esc(p.causale) : ""}`;
+    const act = document.createElement("div"); act.className = "actions";
+    const no = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: "Annulla" });
+    const ok = Object.assign(document.createElement("button"), { className: "btn primary", type: "button", textContent: "Conferma" });
+    act.append(no, ok); box.append(txt, act); log.append(box); log.scrollTop = log.scrollHeight;
+    const close = msg => { box.classList.add("done"); act.replaceChildren(Object.assign(document.createElement("span"), { textContent: msg })); };
+    no.onclick = () => close("Annullato");
+    ok.onclick = async () => { ok.disabled = no.disabled = true;
+      try { const n = await registraMovimento(p.articoloId, p.tipo, p.quantita, p.causale); close(`Registrato · nuova giacenza ${fmtN(n)} ${a?.um || ""}`); }
+      catch (err) { close(errMsg(err)) } };
+  }
+  const slim = a => ({ id: a.id, codice: a.codice, nome: a.nome, categoria: a.categoria, um: a.um, ubicazione: a.ubicazione, giacenza: +a.quantita || 0, scortaMin: +a.scortaMin || 0, prezzo: +a.prezzo || 0, stato: stato(a)[1] });
+  const tools = [
+    { name: "cerca_articoli", description: "Cerca articoli in magazzino per testo (nome, codice, categoria, ubicazione). Testo vuoto = tutti. Restituisce giacenze aggiornate.",
+      inputSchema: { type: "object", properties: { testo: { type: "string" } } },
+      execute: ({ testo }) => { const t = String(testo || "").toLowerCase().split(/\s+/).filter(Boolean);
+        return articoli.filter(a => t.every(w => [a.codice, a.nome, a.categoria, a.ubicazione].join(" ").toLowerCase().includes(w))).slice(0, 60).map(slim); } },
+    { name: "articoli_sotto_scorta", description: "Elenca gli articoli esauriti o con giacenza pari o inferiore alla scorta minima, con la quantità consigliata da riordinare (2× scorta minima meno giacenza).",
+      inputSchema: { type: "object", properties: {} },
+      execute: () => articoli.filter(a => stato(a)[0] !== "ok").map(a => ({ ...slim(a), daRiordinare: Math.max(0, 2 * (+a.scortaMin || 0) - (+a.quantita || 0)) })) },
+    { name: "elenco_movimenti", description: "Movimenti recenti di magazzino, dal più recente. Filtri opzionali: giorni (ultimi N giorni), testo (articolo o cantiere).",
+      inputSchema: { type: "object", properties: { giorni: { type: "number" }, testo: { type: "string" } } },
+      execute: ({ giorni, testo }) => { const from = giorni ? Date.now() - giorni * 864e5 : 0, t = String(testo || "").toLowerCase();
+        return movimenti.filter(m => m.ts >= from && (!t || [m.articoloNome, m.articoloCodice, m.causale].join(" ").toLowerCase().includes(t))).slice(0, 80)
+          .map(m => ({ data: new Date(m.ts).toISOString().slice(0, 16), tipo: m.tipo, articolo: m.articoloNome, codice: m.articoloCodice, qta: m.qta, um: m.um, causale: m.causale })); } },
+    { name: "proponi_movimento", description: "Propone un carico o scarico. NON modifica il magazzino: mostra all'utente un riquadro da confermare. Usa l'id ottenuto da cerca_articoli.",
+      inputSchema: { type: "object", properties: { articoloId: { type: "string" }, tipo: { type: "string", enum: ["carico", "scarico"] }, quantita: { type: "number" }, causale: { type: "string" } }, required: ["articoloId", "tipo", "quantita"] },
+      execute: p => { const a = byId(p.articoloId); if (!a) throw new Error("articoloId sconosciuto");
+        if (!(p.quantita > 0)) throw new Error("quantita deve essere > 0");
+        if (p.tipo === "scarico" && p.quantita > (+a.quantita || 0)) return { esito: "giacenza insufficiente", disponibile: +a.quantita || 0 };
+        addProposal(p); return { esito: "proposta mostrata all'utente, in attesa di conferma" }; } },
+  ];
+  const SYSTEM = `Sei l'assistente di magazzino di GAC Impianti (impianti elettrici, videosorveglianza, reti). Rispondi in italiano, in modo breve e pratico, testo semplice senza markdown pesante. Usa sempre gli strumenti per leggere giacenze e movimenti: non inventare numeri. Per carichi/scarichi usa proponi_movimento; l'utente conferma dal riquadro, quindi di' che è in attesa di conferma, non che è già registrato. Se una richiesta è ambigua (più articoli corrispondono), chiedi quale. Data di oggi: ${new Date().toLocaleDateString("it-IT")}.`;
+
+  let busy = false;
+  async function ask(text) {
+    text = text.trim(); if (!text || busy) return;
+    if (!sample) { $("#ai-note").hidden = false; $("#ai-note").textContent = "L'assistente non è disponibile in questa visualizzazione. Accedi a claude.ai per usarlo."; return; }
+    busy = true; $("#send").disabled = true; $("#prompt").value = "";
+    addMsg("user", text); history.push({ role: "user", content: text });
+    const out = addMsg("bot", "Sto controllando il magazzino…");
+    try {
+      const msgs = history.slice(-12); msgs[0] = { ...msgs[0], content: msgs[0].role === "user" ? SYSTEM + "\n\nRichiesta: " + msgs[0].content : msgs[0].content };
+      if (msgs[0].role !== "user") msgs.shift();
+      const r = await sample(msgs, { tools, cache: false, onText: ({ text }) => { if (text) { out.textContent = text; log.scrollTop = log.scrollHeight; } } });
+      out.textContent = r.text || "Fatto."; history.push({ role: "assistant", content: r.text || "Fatto." });
+    } catch (e) {
+      history.pop();
+      out.textContent = e?.code === "not_granted" ? "Non hai autorizzato l'assistente per questa pagina." : e?.code === "rate_limited" ? "Troppe richieste ravvicinate: riprova tra qualche istante." : "Non sono riuscito a rispondere: " + (e?.message || "errore sconosciuto");
+    } finally { busy = false; $("#send").disabled = false; }
+  }
+  $("#composer").addEventListener("submit", e => { e.preventDefault(); ask($("#prompt").value); });
+  $("#prompt").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask($("#prompt").value); } });
+  $("#chips").addEventListener("click", e => { const c = e.target.closest(".chip"); if (c) ask(c.textContent); });
+
+  // ---- boot
+  render();
+  (async () => {
+    const c = window.claude;
+    if (!c?.use) { $("#status").textContent = "Apri la pagina su claude.ai per accedere all'archivio condiviso."; return; }
+    [db, user, sample] = await Promise.all([c.use("db"), c.use("user"), c.use("sample")]);
+    if (!sample) { $("#ai-note").hidden = false; $("#ai-note").textContent = "L'assistente non è disponibile in questa visualizzazione."; }
+    if (!db) { $("#status").textContent = "Accedi a claude.ai per vedere il magazzino."; return; }
+    try { myId = await user?.id?.() } catch {}
+    const timer = setTimeout(() => { $("#status").textContent = "L'archivio non risponde ancora: i dati potrebbero non essere aggiornati."; }, 10000);
+    const live = () => { clearTimeout(timer); $("#status").textContent = "Dati condivisi · aggiornati in tempo reale"; };
+    db.collection("articoli").onSnapshot(s => { articoli = s.docs.map(d => ({ id: d.id, ...d.data() })); loaded.a = true; if (!s.metadata.fromCache) live(); render(); },
+      e => { clearTimeout(timer); loaded.a = true; $("#status").textContent = "Impossibile leggere gli articoli (" + (e?.code || "errore") + ")."; render(); });
+    db.collection("movimenti").orderBy("ts", "desc").limit(500).onSnapshot(s => { movimenti = s.docs.map(d => ({ id: d.id, ...d.data() })); loaded.m = true; render(); },
+      () => { loaded.m = true; render(); });
+  })();
+})();
+</script>
