@@ -1,0 +1,576 @@
+<title>Progetti GAC</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: banco di lavoro gemello del Magazzino — indicatori in alto, schede Progetti / Scadenze / Assistente, scheda progetto con attività e diario di cantiere */
+:root {
+  --bg: #f2f4f5; --panel: #ffffff; --ink: #1c2328; --muted: #5b6871; --line: #d7dde0;
+  --accent: #1d6a96; --accent-ink: #ffffff; --accent-soft: #dcebf4;
+  --ok: #2f7d4f; --ok-soft: #e1f1e7; --warn: #a86400; --warn-soft: #fbefd6; --bad: #b3362b; --bad-soft: #f8e1de;
+  --info: #5b4fa8; --info-soft: #e9e6f6;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #14191c; --panel: #1c2327; --ink: #e5e9eb; --muted: #98a5ad; --line: #2f393f;
+  --accent: #5fb0e0; --accent-ink: #08202e; --accent-soft: #15303f;
+  --ok: #6cc28f; --ok-soft: #1c3226; --warn: #f0b04a; --warn-soft: #3a2c10; --bad: #f08a7e; --bad-soft: #3d1f1c;
+  --info: #b0a6f0; --info-soft: #2a2645; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #14191c; --panel: #1c2327; --ink: #e5e9eb; --muted: #98a5ad; --line: #2f393f;
+  --accent: #5fb0e0; --accent-ink: #08202e; --accent-soft: #15303f;
+  --ok: #6cc28f; --ok-soft: #1c3226; --warn: #f0b04a; --warn-soft: #3a2c10; --bad: #f08a7e; --bad-soft: #3d1f1c;
+  --info: #b0a6f0; --info-soft: #2a2645; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45 }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 18px }
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: 28px; letter-spacing: .01em; margin: 0; text-wrap: balance }
+h1 small, .eyebrow { display: block; font-family: var(--f-mono); font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: .08em; text-transform: uppercase }
+h2 { font-family: var(--f-display); font-size: 22px; margin: 0; text-wrap: balance }
+h3 { font-family: var(--f-display); font-size: 16px; margin: 0; letter-spacing: .02em }
+.status { font-size: 12px; color: var(--muted) }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px }
+.kpi b { display: block; font-family: var(--f-display); font-size: 24px; font-variant-numeric: tabular-nums }
+.kpi span { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted) }
+.kpi.alert b { color: var(--bad) }
+@media (max-width: 640px) { .kpis { grid-template-columns: repeat(2, minmax(0,1fr)) } }
+
+nav.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); overflow-x: auto }
+nav.tabs button { font: 600 14px var(--f-body); background: none; border: 0; color: var(--muted); padding: 10px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent) }
+nav.tabs .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: var(--bad); color: var(--panel); font-size: 11px; text-align: center }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+input, select, textarea { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; min-width: 0 }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+.toolbar input[type=search] { flex: 1 1 220px }
+.btn { font: 600 13px var(--f-body); border-radius: 5px; padding: 8px 12px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink) }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
+.btn.ghost { border-color: transparent; background: none; color: var(--muted); padding: 4px 8px }
+.btn:disabled { opacity: .5; cursor: default }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px }
+.scroll { overflow-x: auto }
+table { width: 100%; border-collapse: collapse; font-size: 13px }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; padding: 10px; border-bottom: 1px solid var(--line); white-space: nowrap }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle }
+tr:last-child td { border-bottom: 0 }
+tbody tr.click { cursor: pointer } tbody tr.click:hover td { background: var(--accent-soft) }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.code { font-family: var(--f-mono); font-size: 12px; color: var(--muted) }
+.sub { display: block; font-size: 12px; color: var(--muted) }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap }
+.pill.preventivo { background: var(--info-soft); color: var(--info) } .pill.approvato { background: var(--accent-soft); color: var(--accent) }
+.pill.incorso { background: var(--warn-soft); color: var(--warn) } .pill.sospeso { background: var(--bad-soft); color: var(--bad) }
+.pill.completato { background: var(--ok-soft); color: var(--ok) } .pill.pa { background: none; border: 1px solid var(--line); color: var(--muted) }
+.late { color: var(--bad); font-weight: 600 }
+.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; min-width: 70px }
+.bar i { display: block; height: 100%; background: var(--accent) }
+.empty { padding: 28px 16px; text-align: center; color: var(--muted) }
+
+/* scheda progetto */
+.detail { display: grid; gap: 14px }
+.dhead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: start }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden }
+.facts div { background: var(--panel); padding: 10px 12px; min-width: 0; overflow-wrap: anywhere }
+.facts span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted) }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px }
+@media (max-width: 800px) { .cols { grid-template-columns: minmax(0, 1fr) } }
+.box { padding: 14px; display: grid; gap: 10px; align-content: start }
+.boxhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
+.tasks { list-style: none; margin: 0; padding: 0; display: grid }
+.tasks li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 8px 0; border-bottom: 1px solid var(--line) }
+.tasks li:last-child { border-bottom: 0 }
+.tasks li.done .t { text-decoration: line-through; color: var(--muted) }
+.tasks input[type=checkbox] { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--accent) }
+.t { overflow-wrap: anywhere }
+.addrow { display: flex; flex-wrap: wrap; gap: 6px }
+.addrow input[type=text], .addrow textarea { flex: 1 1 200px }
+.notes { display: grid; gap: 10px }
+.note-i { border-left: 2px solid var(--line); padding-left: 10px; white-space: pre-wrap; overflow-wrap: anywhere }
+.note-i .meta { display: block; font-family: var(--f-mono); font-size: 11px; color: var(--muted); white-space: normal }
+.desc { white-space: pre-wrap; max-width: 75ch; margin: 0; color: var(--ink) }
+
+dialog { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); padding: 0; width: min(520px, calc(100vw - 32px)) }
+dialog::backdrop { background: rgb(0 0 0 / .35) }
+dialog form { display: grid; gap: 12px; padding: 18px }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+label { display: grid; gap: 4px; font-size: 12px; color: var(--muted) }
+label.inline { display: flex; align-items: center; gap: 6px; color: var(--ink); font-size: 13px }
+.actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap }
+.err { color: var(--bad); font-size: 12px; min-height: 1em }
+
+/* Assistente */
+.chat { display: grid; grid-template-rows: 1fr auto; min-height: 460px }
+.log { padding: 16px; display: grid; gap: 12px; align-content: start; overflow-y: auto; max-height: 60vh }
+.msg { max-width: 78ch; white-space: pre-wrap; overflow-wrap: anywhere }
+.msg.user { justify-self: end; background: var(--accent-soft); padding: 8px 12px; border-radius: 8px 8px 2px 8px }
+.msg.bot { padding: 2px 0 }
+.msg.bot::before { content: "ASSISTENTE PROGETTI"; display: block; font: 500 10px var(--f-mono); letter-spacing: .1em; color: var(--accent); margin-bottom: 2px }
+.proposal { border: 1px dashed var(--accent); border-radius: 6px; padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between }
+.proposal > div:first-child { min-width: 0; overflow-wrap: anywhere; flex: 1 1 240px }
+.proposal.done { border-style: solid; border-color: var(--line); color: var(--muted) }
+.composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); flex-wrap: wrap }
+.composer textarea { flex: 1 1 260px; resize: vertical; min-height: 42px }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px }
+.chip { font-size: 12px; border: 1px solid var(--line); border-radius: 14px; padding: 4px 10px; background: none; color: var(--ink); cursor: pointer }
+.note { font-size: 12px; color: var(--muted); padding: 12px 16px }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1><small>GAC Impianti · cantieri e commesse</small>Progetti</h1>
+    <div class="status" id="status">Collegamento all'archivio…</div>
+  </header>
+
+  <section class="kpis" aria-label="Riepilogo">
+    <div class="kpi"><span>Progetti attivi</span><b id="k-att">–</b></div>
+    <div class="kpi"><span>Valore attivi</span><b id="k-val">–</b></div>
+    <div class="kpi alert"><span>Attività in ritardo</span><b id="k-late">–</b></div>
+    <div class="kpi"><span>Scadenze 7 gg</span><b id="k-week">–</b></div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="t-prj" aria-selected="true" data-view="prj">Progetti</button>
+    <button role="tab" id="t-sca" aria-selected="false" data-view="sca">Scadenze</button>
+    <button role="tab" id="t-ai" aria-selected="false" data-view="ai">Assistente</button>
+  </nav>
+
+  <section id="v-prj" class="view" style="display:grid;gap:12px">
+    <div id="list" style="display:grid;gap:12px">
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="Cerca per nome, cliente, località, codice…">
+        <select id="fstato"><option value="">Tutti gli stati</option><option value="attivi" selected>Solo attivi</option></select>
+        <select id="ftipo"><option value="">Tutti i tipi</option></select>
+        <button class="btn primary" id="b-new">+ Nuovo progetto</button>
+      </div>
+      <div class="panel scroll">
+        <table>
+          <thead><tr><th>Codice</th><th>Progetto</th><th>Tipo</th><th>Stato</th><th>Avanzamento</th><th>Consegna</th><th class="num">Importo</th></tr></thead>
+          <tbody id="prj-body"></tbody>
+        </table>
+        <div class="empty" id="prj-empty" hidden></div>
+      </div>
+    </div>
+    <div id="detail" class="detail" hidden></div>
+  </section>
+
+  <section id="v-sca" class="view" hidden style="display:grid;gap:12px">
+    <div class="toolbar">
+      <select id="fgiorni"><option value="7">Prossimi 7 giorni</option><option value="30" selected>Prossimi 30 giorni</option><option value="90">Prossimi 90 giorni</option><option value="9999">Tutte</option></select>
+      <span class="status">Le attività in ritardo compaiono sempre in cima.</span>
+    </div>
+    <div class="panel scroll">
+      <table>
+        <thead><tr><th>Scadenza</th><th>Cosa</th><th>Progetto</th><th></th></tr></thead>
+        <tbody id="sca-body"></tbody>
+      </table>
+      <div class="empty" id="sca-empty" hidden></div>
+    </div>
+  </section>
+
+  <section id="v-ai" class="view" hidden>
+    <div class="panel chat">
+      <div>
+        <div class="log" id="log" aria-live="polite">
+          <div class="msg bot">Ciao. Conosco tutti i progetti in archivio: posso dirti cosa scade, fare il punto su un cantiere, preparare un riepilogo per il cliente o l'ente, aggiungere attività e note al diario o cambiare lo stato di un progetto. Ogni modifica te la faccio confermare prima.</div>
+        </div>
+        <div class="chips" id="chips">
+          <button class="chip">Cosa scade questa settimana?</button>
+          <button class="chip">Quali progetti sono in ritardo?</button>
+          <button class="chip">Fammi il punto sui lavori per enti pubblici</button>
+          <button class="chip">Prepara un riepilogo di avanzamento da mandare al cliente</button>
+        </div>
+      </div>
+      <form class="composer" id="composer">
+        <textarea id="prompt" rows="2" placeholder="Scrivi una richiesta… (Invio per inviare)"></textarea>
+        <button class="btn primary" id="send">Invia</button>
+      </form>
+      <div class="note" id="ai-note" hidden></div>
+    </div>
+  </section>
+</div>
+
+<dialog id="d-prj">
+  <form id="f-prj" method="dialog">
+    <h2 id="d-prj-title">Nuovo progetto</h2>
+    <div class="grid2">
+      <label>Codice commessa<input id="p-codice" required maxlength="30" placeholder="es. 2026-014"></label>
+      <label>Tipo<input id="p-tipo" list="tipi" maxlength="40" placeholder="es. Videosorveglianza"></label>
+    </div>
+    <label>Nome progetto<input id="p-nome" required maxlength="120" placeholder="es. Videosorveglianza centro storico"></label>
+    <div class="grid2">
+      <label>Cliente / ente<input id="p-cliente" maxlength="100" placeholder="es. Comune di Castronovo di Sicilia"></label>
+      <label>Località<input id="p-luogo" maxlength="100"></label>
+    </div>
+    <label class="inline"><input type="checkbox" id="p-pa"> Committente pubblico (PA)</label>
+    <div class="grid2">
+      <label>Stato<select id="p-stato"></select></label>
+      <label>Responsabile<input id="p-resp" maxlength="60"></label>
+    </div>
+    <div class="grid2">
+      <label>Inizio lavori<input id="p-inizio" type="date"></label>
+      <label>Consegna prevista<input id="p-scad" type="date"></label>
+    </div>
+    <label>Importo € (IVA esclusa)<input id="p-importo" type="number" min="0" step="0.01" value="0"></label>
+    <label>Descrizione / riferimenti (CIG, CUP, determina…)<textarea id="p-desc" rows="3" maxlength="2000"></textarea></label>
+    <div class="err" id="p-err"></div>
+    <div class="actions">
+      <button class="btn ghost" id="p-del" type="button" hidden>Elimina progetto</button>
+      <button class="btn" type="button" data-close>Annulla</button>
+      <button class="btn primary" id="p-save">Salva</button>
+    </div>
+  </form>
+</dialog>
+<datalist id="tipi"><option value="Videosorveglianza"><option value="Impianto elettrico"><option value="Rete dati"><option value="Antintrusione"><option value="Fotovoltaico"><option value="Manutenzione"></datalist>
+
+<dialog id="d-confirm">
+  <form method="dialog" style="gap:16px">
+    <h2>Eliminare il progetto?</h2>
+    <p id="c-text" style="margin:0"></p>
+    <div class="actions"><button class="btn" value="no">Annulla</button><button class="btn primary" value="yes">Elimina</button></div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const fmtN = n => Number(n || 0).toLocaleString("it-IT", { maximumFractionDigits: 2 });
+  const fmtE = n => Number(n || 0).toLocaleString("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  const fmtDay = d => d ? new Date(d + "T12:00:00").toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" }) : "";
+  const fmtTs = t => new Date(t).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const iso = d => { const z = new Date(d); z.setMinutes(z.getMinutes() - z.getTimezoneOffset()); return z.toISOString().slice(0, 10); };
+  const today = () => iso(new Date());
+  const plus = n => iso(Date.now() + n * 864e5);
+
+  const STATI = [["preventivo", "Preventivo"], ["approvato", "Approvato"], ["incorso", "In corso"], ["sospeso", "Sospeso"], ["completato", "Completato"]];
+  const statoLbl = k => (STATI.find(s => s[0] === k) || [, k || "—"])[1];
+  const ATTIVI = ["approvato", "incorso", "sospeso"];
+  $("#p-stato").innerHTML = STATI.map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
+  $("#fstato").innerHTML = '<option value="">Tutti gli stati</option><option value="attivi" selected>Solo attivi</option>' + STATI.map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
+
+  let db = null, user = null, sample = null, myId = null;
+  let progetti = [], attivita = [], note = [], loaded = { p: false, a: false, n: false };
+  let openId = null;
+  const names = {};
+
+  // ---- tabs
+  document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
+  function show(v) {
+    document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === v)));
+    document.querySelectorAll(".view").forEach(s => s.hidden = s.id !== "v-" + v);
+    try { localStorage.setItem("prj-tab", v) } catch {}
+  }
+  try { const t = localStorage.getItem("prj-tab"); if (t) show(t) } catch {}
+  try { const f = localStorage.getItem("prj-fstato"); if (f !== null) $("#fstato").value = f } catch {}
+
+  const byId = id => progetti.find(p => p.id === id);
+  const tasksOf = id => attivita.filter(a => a.progettoId === id);
+  const notesOf = id => note.filter(n => n.progettoId === id).sort((x, y) => y.ts - x.ts);
+  const progress = id => { const t = tasksOf(id); return t.length ? Math.round(100 * t.filter(a => a.fatto).length / t.length) : null; };
+  const isLateTask = a => !a.fatto && a.scadenza && a.scadenza < today();
+  const isLatePrj = p => ATTIVI.includes(p.stato) && p.scadenza && p.scadenza < today();
+
+  // ---- render
+  function render() {
+    const attivi = progetti.filter(p => ATTIVI.includes(p.stato));
+    const late = attivita.filter(a => isLateTask(a) && byId(a.progettoId));
+    const wk = plus(7), t0 = today();
+    const week = attivita.filter(a => !a.fatto && a.scadenza && a.scadenza >= t0 && a.scadenza <= wk).length
+      + attivi.filter(p => p.scadenza && p.scadenza >= t0 && p.scadenza <= wk).length;
+    $("#k-att").textContent = fmtN(attivi.length);
+    $("#k-val").textContent = fmtE(attivi.reduce((s, p) => s + (+p.importo || 0), 0));
+    $("#k-late").textContent = fmtN(late.length);
+    $("#k-week").textContent = fmtN(week);
+    $("#t-sca").innerHTML = "Scadenze" + (late.length ? `<span class="badge">${late.length}</span>` : "");
+
+    const tipi = [...new Set(progetti.map(p => p.tipo).filter(Boolean))].sort();
+    const ft = $("#ftipo"), curT = ft.value;
+    ft.innerHTML = '<option value="">Tutti i tipi</option>' + tipi.map(c => `<option${c === curT ? " selected" : ""}>${esc(c)}</option>`).join("");
+
+    const q = $("#q").value.trim().toLowerCase(), fs = $("#fstato").value;
+    const rows = progetti.filter(p => (!fs || (fs === "attivi" ? ATTIVI.includes(p.stato) || p.stato === "preventivo" : p.stato === fs)) && (!curT || p.tipo === curT) &&
+      (!q || [p.codice, p.nome, p.cliente, p.luogo, p.tipo, p.responsabile].join(" ").toLowerCase().includes(q)))
+      .sort((x, y) => (x.scadenza || "9999").localeCompare(y.scadenza || "9999") || String(x.nome).localeCompare(String(y.nome), "it"));
+    $("#prj-body").innerHTML = rows.map(p => { const pr = progress(p.id); return `<tr class="click" data-open="${esc(p.id)}" tabindex="0">
+      <td class="code">${esc(p.codice)}</td>
+      <td><b>${esc(p.nome)}</b><span class="sub">${esc(p.cliente)}${p.luogo ? " · " + esc(p.luogo) : ""}</span></td>
+      <td>${esc(p.tipo)}${p.pa ? ' <span class="pill pa">PA</span>' : ""}</td>
+      <td><span class="pill ${esc(p.stato)}">${statoLbl(p.stato)}</span></td>
+      <td>${pr === null ? '<span class="sub">nessuna attività</span>' : `<div class="bar" title="${pr}%"><i style="width:${pr}%"></i></div><span class="sub">${pr}%</span>`}</td>
+      <td class="${isLatePrj(p) ? "late" : ""}">${fmtDay(p.scadenza)}</td>
+      <td class="num">${p.importo ? fmtE(p.importo) : ""}</td></tr>`; }).join("");
+    const pe = $("#prj-empty");
+    pe.hidden = rows.length > 0;
+    pe.textContent = !loaded.p ? "Caricamento progetti…" : progetti.length ? "Nessun progetto corrisponde ai filtri." : "Nessun progetto in archivio. Crea il primo con «+ Nuovo progetto».";
+
+    renderScadenze();
+    if (openId) renderDetail();
+    resolveNames();
+  }
+
+  function renderScadenze() {
+    const lim = plus(+$("#fgiorni").value), t0 = today();
+    const items = [
+      ...attivita.filter(a => !a.fatto && a.scadenza && a.scadenza <= lim && byId(a.progettoId)).map(a => ({ d: a.scadenza, what: a.testo, kind: "Attività", pid: a.progettoId, late: a.scadenza < t0 })),
+      ...progetti.filter(p => ATTIVI.includes(p.stato) && p.scadenza && p.scadenza <= lim).map(p => ({ d: p.scadenza, what: "Consegna lavori", kind: "Consegna", pid: p.id, late: p.scadenza < t0 })),
+    ].sort((x, y) => x.d.localeCompare(y.d));
+    $("#sca-body").innerHTML = items.map(i => { const p = byId(i.pid); return `<tr class="click" data-open="${esc(i.pid)}" tabindex="0">
+      <td class="${i.late ? "late" : ""}" style="white-space:nowrap">${fmtDay(i.d)}${i.late ? '<span class="sub">in ritardo</span>' : ""}</td>
+      <td>${esc(i.what)}<span class="sub">${i.kind}</span></td>
+      <td>${esc(p?.nome)}<span class="sub code">${esc(p?.codice)}</span></td>
+      <td class="num"><span class="btn ghost">Apri</span></td></tr>`; }).join("");
+    const se = $("#sca-empty");
+    se.hidden = items.length > 0;
+    se.textContent = !loaded.a ? "Caricamento…" : "Nessuna scadenza nel periodo scelto.";
+  }
+
+  function renderDetail() {
+    const p = byId(openId);
+    if (!p) { closeDetail(); return; }
+    const t = tasksOf(p.id).sort((x, y) => (x.fatto - y.fatto) || (x.scadenza || "9999").localeCompare(y.scadenza || "9999"));
+    const n = notesOf(p.id), pr = progress(p.id);
+    const keep = { t: $("#n-task")?.value || "", d: $("#n-task-d")?.value || "", n: $("#n-note")?.value || "" };
+    const focus = document.activeElement?.id;
+    $("#detail").innerHTML = `
+      <div><button class="btn ghost" id="back" type="button">← Tutti i progetti</button></div>
+      <div class="dhead">
+        <div style="min-width:0"><span class="eyebrow">${esc(p.codice)} · ${esc(p.tipo || "Progetto")}</span><h2>${esc(p.nome)}</h2></div>
+        <div class="toolbar"><span class="pill ${esc(p.stato)}">${statoLbl(p.stato)}</span>${p.pa ? '<span class="pill pa">Committente pubblico</span>' : ""}
+          <button class="btn" id="b-edit" type="button">Modifica</button></div>
+      </div>
+      <div class="facts">
+        <div><span>Cliente / ente</span>${esc(p.cliente) || "—"}</div>
+        <div><span>Località</span>${esc(p.luogo) || "—"}</div>
+        <div><span>Responsabile</span>${esc(p.responsabile) || "—"}</div>
+        <div><span>Inizio</span>${fmtDay(p.inizio) || "—"}</div>
+        <div><span>Consegna</span><span class="${isLatePrj(p) ? "late" : ""}" style="font-size:inherit;text-transform:none;letter-spacing:0;color:${isLatePrj(p) ? "var(--bad)" : "inherit"}">${fmtDay(p.scadenza) || "—"}</span></div>
+        <div><span>Importo</span>${p.importo ? fmtE(p.importo) : "—"}</div>
+      </div>
+      ${p.descrizione ? `<p class="desc">${esc(p.descrizione)}</p>` : ""}
+      <div class="cols">
+        <div class="panel box">
+          <div class="boxhead"><h3>Attività</h3><span class="status">${pr === null ? "" : `${t.filter(a => a.fatto).length}/${t.length} completate · ${pr}%`}</span></div>
+          ${pr === null ? "" : `<div class="bar"><i style="width:${pr}%"></i></div>`}
+          <ul class="tasks">${t.map(a => `<li class="${a.fatto ? "done" : ""}">
+            <input type="checkbox" data-tk="${esc(a.id)}" ${a.fatto ? "checked" : ""} aria-label="Completata">
+            <div class="t">${esc(a.testo)}${a.scadenza ? `<span class="sub ${isLateTask(a) ? "late" : ""}">entro ${fmtDay(a.scadenza)}${isLateTask(a) ? " · in ritardo" : ""}</span>` : ""}</div>
+            <button class="btn ghost" data-tdel="${esc(a.id)}" type="button" aria-label="Elimina attività">✕</button></li>`).join("") || '<li style="display:block;color:var(--muted)">Nessuna attività. Aggiungi sopralluogo, ordine materiali, posa, collaudo…</li>'}</ul>
+          <form class="addrow" id="f-task"><input type="text" id="n-task" placeholder="Nuova attività" maxlength="200" required><input type="date" id="n-task-d" aria-label="Scadenza"><button class="btn primary">Aggiungi</button></form>
+        </div>
+        <div class="panel box">
+          <div class="boxhead"><h3>Diario di cantiere</h3><span class="status">${n.length ? n.length + " note" : ""}</span></div>
+          <form class="addrow" id="f-note"><textarea id="n-note" rows="2" placeholder="Cosa è successo oggi in cantiere?" maxlength="2000" required></textarea><button class="btn primary">Annota</button></form>
+          <div class="notes">${n.map(x => `<div class="note-i"><span class="meta">${fmtTs(x.ts)} · <span data-uid="${esc(x.utente)}">${esc(names[x.utente] || "")}</span></span>${esc(x.testo)}</div>`).join("") || '<div class="status">Nessuna nota ancora.</div>'}</div>
+        </div>
+      </div>`;
+    $("#n-task").value = keep.t; $("#n-task-d").value = keep.d; $("#n-note").value = keep.n;
+    if (focus && $("#" + focus)) $("#" + focus).focus();
+  }
+
+  function openDetail(id) { openId = id; $("#list").hidden = true; $("#detail").hidden = false; show("prj"); renderDetail(); window.scrollTo({ top: 0 }); }
+  function closeDetail() { openId = null; $("#detail").hidden = true; $("#list").hidden = false; }
+
+  async function resolveNames() {
+    if (!user?.profiles) return;
+    const ids = [...new Set(note.map(m => m.utente).filter(id => id && !(id in names)))];
+    if (!ids.length) return;
+    try { const ps = await user.profiles(ids); ids.forEach(id => names[id] = ps?.[id]?.name || "Utente");
+      document.querySelectorAll("[data-uid]").forEach(el => el.textContent = names[el.dataset.uid] || ""); } catch {}
+  }
+
+  ["#q"].forEach(s => $(s).addEventListener("input", render));
+  ["#ftipo", "#fgiorni"].forEach(s => $(s).addEventListener("change", render));
+  $("#fstato").addEventListener("change", () => { try { localStorage.setItem("prj-fstato", $("#fstato").value) } catch {}; render(); });
+  const openFrom = e => { const r = e.target.closest("[data-open]"); if (r) openDetail(r.dataset.open); };
+  ["#prj-body", "#sca-body"].forEach(s => { $(s).addEventListener("click", openFrom); $(s).addEventListener("keydown", e => { if (e.key === "Enter") openFrom(e); }); });
+
+  // ---- data ops
+  const errMsg = e => e?.code === "permission_denied" ? "Non hai i permessi per modificare i progetti." : (e?.message || "Operazione non riuscita.");
+  async function addAttivita(pid, testo, scadenza) {
+    if (!byId(pid)) throw new Error("Progetto non trovato.");
+    testo = String(testo || "").trim().slice(0, 200); if (!testo) throw new Error("Scrivi l'attività.");
+    if (scadenza && !/^\d{4}-\d{2}-\d{2}$/.test(scadenza)) throw new Error("Data non valida.");
+    await db.collection("attivita").add({ progettoId: pid, testo, scadenza: scadenza || "", fatto: false, ts: Date.now(), utente: myId || "" });
+  }
+  async function addNota(pid, testo) {
+    if (!byId(pid)) throw new Error("Progetto non trovato.");
+    testo = String(testo || "").trim().slice(0, 2000); if (!testo) throw new Error("La nota è vuota.");
+    await db.collection("note").add({ progettoId: pid, testo, ts: Date.now(), utente: myId || "" });
+  }
+  async function setStato(pid, stato) {
+    if (!byId(pid)) throw new Error("Progetto non trovato.");
+    if (!STATI.some(s => s[0] === stato)) throw new Error("Stato non valido.");
+    await db.collection("progetti").doc(pid).update({ stato, aggiornato: Date.now() });
+  }
+  async function setFatto(tid, fatto) {
+    const a = attivita.find(x => x.id === tid); if (!a) throw new Error("Attività non trovata.");
+    await db.collection("attivita").doc(tid).update({ fatto, completata: fatto ? Date.now() : 0 });
+  }
+
+  $("#detail").addEventListener("click", async e => {
+    if (e.target.closest("#back")) closeDetail();
+    else if (e.target.closest("#b-edit")) openPrj(byId(openId));
+    else if (e.target.closest("[data-tdel]")) { try { await db.collection("attivita").doc(e.target.closest("[data-tdel]").dataset.tdel).delete() } catch (err) { $("#status").textContent = errMsg(err) } }
+  });
+  $("#detail").addEventListener("change", async e => {
+    const c = e.target.closest("[data-tk]"); if (!c) return;
+    try { await setFatto(c.dataset.tk, c.checked) } catch (err) { c.checked = !c.checked; $("#status").textContent = errMsg(err) }
+  });
+  $("#detail").addEventListener("submit", async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector("button"); btn.disabled = true;
+    try {
+      if (e.target.id === "f-task") { await addAttivita(openId, $("#n-task").value, $("#n-task-d").value); $("#n-task").value = ""; $("#n-task-d").value = ""; }
+      if (e.target.id === "f-note") { await addNota(openId, $("#n-note").value); $("#n-note").value = ""; }
+    } catch (err) { $("#status").textContent = errMsg(err) } finally { btn.disabled = false }
+  });
+
+  // ---- dialog progetto
+  document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => b.closest("dialog").close()));
+  let editing = null;
+  function openPrj(p) {
+    editing = p || null;
+    $("#d-prj-title").textContent = p ? "Modifica progetto" : "Nuovo progetto";
+    $("#p-codice").value = p?.codice || ""; $("#p-nome").value = p?.nome || ""; $("#p-tipo").value = p?.tipo || "";
+    $("#p-cliente").value = p?.cliente || ""; $("#p-luogo").value = p?.luogo || ""; $("#p-pa").checked = !!p?.pa;
+    $("#p-stato").value = p?.stato || "preventivo"; $("#p-resp").value = p?.responsabile || "";
+    $("#p-inizio").value = p?.inizio || ""; $("#p-scad").value = p?.scadenza || ""; $("#p-importo").value = p?.importo ?? 0;
+    $("#p-desc").value = p?.descrizione || ""; $("#p-del").hidden = !p; $("#p-err").textContent = "";
+    $("#d-prj").showModal();
+  }
+  $("#b-new").addEventListener("click", () => db ? openPrj() : null);
+  $("#f-prj").addEventListener("submit", async e => {
+    e.preventDefault();
+    const codice = $("#p-codice").value.trim();
+    if (progetti.some(p => String(p.codice).toLowerCase() === codice.toLowerCase() && p.id !== editing?.id)) { $("#p-err").textContent = "Esiste già un progetto con questo codice."; return; }
+    const data = { codice, nome: $("#p-nome").value.trim(), tipo: $("#p-tipo").value.trim(), cliente: $("#p-cliente").value.trim(),
+      luogo: $("#p-luogo").value.trim(), pa: $("#p-pa").checked, stato: $("#p-stato").value, responsabile: $("#p-resp").value.trim(),
+      inizio: $("#p-inizio").value, scadenza: $("#p-scad").value, importo: +$("#p-importo").value || 0, descrizione: $("#p-desc").value.trim(), aggiornato: Date.now() };
+    $("#p-save").disabled = true;
+    try {
+      if (editing) await db.collection("progetti").doc(editing.id).update(data);
+      else { const ref = await db.collection("progetti").add({ ...data, creato: Date.now() }); openId = ref?.id || null; if (openId) openDetail(openId); }
+      $("#d-prj").close();
+    } catch (err) { $("#p-err").textContent = errMsg(err) } finally { $("#p-save").disabled = false }
+  });
+  $("#p-del").addEventListener("click", () => {
+    $("#c-text").textContent = `«${editing.nome}» verrà eliminato insieme alle sue attività e alle note del diario.`;
+    $("#d-confirm").returnValue = ""; $("#d-confirm").showModal();
+  });
+  $("#d-confirm").addEventListener("close", async () => {
+    if ($("#d-confirm").returnValue !== "yes" || !editing) return;
+    const id = editing.id;
+    try {
+      for (const a of tasksOf(id)) await db.collection("attivita").doc(a.id).delete();
+      for (const n of notesOf(id)) await db.collection("note").doc(n.id).delete();
+      await db.collection("progetti").doc(id).delete();
+      $("#d-prj").close(); closeDetail();
+    } catch (err) { $("#p-err").textContent = errMsg(err) }
+  });
+
+  // ---- assistente
+  const history = [];
+  const log = $("#log");
+  function addMsg(cls, text) { const d = document.createElement("div"); d.className = "msg " + cls; d.textContent = text; log.append(d); log.scrollTop = log.scrollHeight; return d; }
+  function addProposal(html, run, okLabel) {
+    const box = document.createElement("div"); box.className = "proposal";
+    const txt = document.createElement("div"); txt.innerHTML = html;
+    const act = document.createElement("div"); act.className = "actions";
+    const no = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: "Annulla" });
+    const ok = Object.assign(document.createElement("button"), { className: "btn primary", type: "button", textContent: "Conferma" });
+    act.append(no, ok); box.append(txt, act); log.append(box); log.scrollTop = log.scrollHeight;
+    const close = msg => { box.classList.add("done"); act.replaceChildren(Object.assign(document.createElement("span"), { textContent: msg })); };
+    no.onclick = () => close("Annullato");
+    ok.onclick = async () => { ok.disabled = no.disabled = true; try { await run(); close(okLabel); } catch (err) { close(errMsg(err)) } };
+  }
+  const slim = p => { const t = tasksOf(p.id); return { id: p.id, codice: p.codice, nome: p.nome, tipo: p.tipo, cliente: p.cliente, luogo: p.luogo,
+    committentePubblico: !!p.pa, stato: statoLbl(p.stato), responsabile: p.responsabile, inizio: p.inizio, consegna: p.scadenza, importo: +p.importo || 0,
+    consegnaInRitardo: isLatePrj(p), attivitaTotali: t.length, attivitaFatte: t.filter(a => a.fatto).length, attivitaInRitardo: t.filter(isLateTask).length }; };
+  const needPrj = id => { const p = byId(id); if (!p) throw new Error("progettoId sconosciuto: usa cerca_progetti per trovarlo"); return p; };
+  const tools = [
+    { name: "cerca_progetti", description: "Cerca progetti per testo (nome, cliente, località, codice, tipo, responsabile). Testo vuoto = tutti. Filtro stato opzionale: preventivo, approvato, incorso, sospeso, completato, oppure 'attivi'.",
+      inputSchema: { type: "object", properties: { testo: { type: "string" }, stato: { type: "string" } } },
+      execute: ({ testo, stato }) => { const w = String(testo || "").toLowerCase().split(/\s+/).filter(Boolean);
+        return progetti.filter(p => (!stato || (stato === "attivi" ? ATTIVI.includes(p.stato) : p.stato === stato)) &&
+          w.every(x => [p.codice, p.nome, p.cliente, p.luogo, p.tipo, p.responsabile].join(" ").toLowerCase().includes(x))).slice(0, 50).map(slim); } },
+    { name: "dettaglio_progetto", description: "Scheda completa di un progetto: dati, descrizione, tutte le attività con scadenze e le ultime 25 note del diario di cantiere.",
+      inputSchema: { type: "object", properties: { progettoId: { type: "string" } }, required: ["progettoId"] },
+      execute: ({ progettoId }) => { const p = needPrj(progettoId);
+        return { ...slim(p), descrizione: p.descrizione || "",
+          attivita: tasksOf(p.id).map(a => ({ id: a.id, testo: a.testo, scadenza: a.scadenza, fatta: !!a.fatto, inRitardo: isLateTask(a) })),
+          diario: notesOf(p.id).slice(0, 25).map(n => ({ data: new Date(n.ts).toISOString().slice(0, 16), testo: n.testo })) }; } },
+    { name: "scadenze", description: "Attività aperte e consegne di progetti attivi in scadenza entro N giorni da oggi (default 14). Include sempre quelle già in ritardo.",
+      inputSchema: { type: "object", properties: { giorni: { type: "number" } } },
+      execute: ({ giorni }) => { const lim = plus(giorni || 14), t0 = today();
+        return [...attivita.filter(a => !a.fatto && a.scadenza && a.scadenza <= lim && byId(a.progettoId)).map(a => ({ tipo: "attività", testo: a.testo, scadenza: a.scadenza, inRitardo: a.scadenza < t0, progetto: byId(a.progettoId).nome, progettoId: a.progettoId })),
+          ...progetti.filter(p => ATTIVI.includes(p.stato) && p.scadenza && p.scadenza <= lim).map(p => ({ tipo: "consegna lavori", testo: p.nome, scadenza: p.scadenza, inRitardo: p.scadenza < t0, progetto: p.nome, progettoId: p.id }))]
+          .sort((x, y) => x.scadenza.localeCompare(y.scadenza)); } },
+    { name: "proponi_attivita", description: "Propone di aggiungere un'attività a un progetto (scadenza facoltativa, formato AAAA-MM-GG). NON scrive nulla: mostra un riquadro che l'utente conferma.",
+      inputSchema: { type: "object", properties: { progettoId: { type: "string" }, testo: { type: "string" }, scadenza: { type: "string" } }, required: ["progettoId", "testo"] },
+      execute: ({ progettoId, testo, scadenza }) => { const p = needPrj(progettoId);
+        if (scadenza && !/^\d{4}-\d{2}-\d{2}$/.test(scadenza)) throw new Error("scadenza deve essere AAAA-MM-GG");
+        addProposal(`<b>Nuova attività</b> · ${esc(p.nome)}<span class="sub">${esc(testo)}${scadenza ? " · entro " + fmtDay(scadenza) : ""}</span>`, () => addAttivita(p.id, testo, scadenza), "Attività aggiunta");
+        return { esito: "proposta mostrata, in attesa di conferma dell'utente" }; } },
+    { name: "proponi_nota", description: "Propone di aggiungere una nota al diario di cantiere di un progetto. NON scrive nulla: l'utente conferma dal riquadro.",
+      inputSchema: { type: "object", properties: { progettoId: { type: "string" }, testo: { type: "string" } }, required: ["progettoId", "testo"] },
+      execute: ({ progettoId, testo }) => { const p = needPrj(progettoId);
+        addProposal(`<b>Nota nel diario</b> · ${esc(p.nome)}<span class="sub">${esc(testo)}</span>`, () => addNota(p.id, testo), "Nota salvata");
+        return { esito: "proposta mostrata, in attesa di conferma dell'utente" }; } },
+    { name: "proponi_stato", description: "Propone di cambiare lo stato di un progetto. Valori: preventivo, approvato, incorso, sospeso, completato. NON scrive nulla: l'utente conferma.",
+      inputSchema: { type: "object", properties: { progettoId: { type: "string" }, stato: { type: "string", enum: STATI.map(s => s[0]) } }, required: ["progettoId", "stato"] },
+      execute: ({ progettoId, stato }) => { const p = needPrj(progettoId);
+        if (!STATI.some(s => s[0] === stato)) throw new Error("stato non valido");
+        addProposal(`<b>Cambio stato</b> · ${esc(p.nome)}<span class="sub">${statoLbl(p.stato)} → ${statoLbl(stato)}</span>`, () => setStato(p.id, stato), "Stato aggiornato");
+        return { esito: "proposta mostrata, in attesa di conferma dell'utente" }; } },
+  ];
+  const SYSTEM = () => `Sei l'assistente progetti di GAC Impianti (impianti elettrici, videosorveglianza, reti dati, antintrusione), spesso per enti pubblici come i Comuni. Rispondi in italiano, breve e pratico, testo semplice senza markdown pesante. Leggi sempre i dati con gli strumenti: non inventare date, importi o stati. Per aggiungere attività, note o cambiare stato usa gli strumenti proponi_*: l'utente conferma dal riquadro, quindi di' che la modifica è in attesa di conferma. Se più progetti corrispondono, chiedi quale. Quando prepari un testo per un cliente o un ente, usa un tono formale e cita solo fatti presenti nell'archivio. Per i committenti pubblici ricorda, se pertinente, riferimenti come CIG/CUP o determine presenti nella descrizione. Oggi è ${new Date().toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} (${today()}).`;
+
+  let busy = false;
+  async function ask(text) {
+    text = text.trim(); if (!text || busy) return;
+    if (!sample) { $("#ai-note").hidden = false; $("#ai-note").textContent = "L'assistente non è disponibile in questa visualizzazione. Apri la pagina su claude.ai per usarlo."; return; }
+    busy = true; $("#send").disabled = true; $("#prompt").value = "";
+    addMsg("user", text); history.push({ role: "user", content: text });
+    const out = addMsg("bot", "Sto consultando i progetti…");
+    try {
+      const msgs = history.slice(-12); if (msgs[0].role !== "user") msgs.shift();
+      msgs[0] = { ...msgs[0], content: SYSTEM() + "\n\nRichiesta: " + msgs[0].content };
+      const r = await sample(msgs, { tools, cache: false, onText: ({ text }) => { if (text) { out.textContent = text; log.scrollTop = log.scrollHeight; } } });
+      out.textContent = r.text || "Fatto."; history.push({ role: "assistant", content: r.text || "Fatto." });
+    } catch (e) {
+      history.pop();
+      out.textContent = e?.code === "not_granted" ? "Non hai autorizzato l'assistente per questa pagina." : e?.code === "rate_limited" ? "Troppe richieste ravvicinate: riprova tra qualche istante." : "Non sono riuscito a rispondere: " + (e?.message || "errore sconosciuto");
+    } finally { busy = false; $("#send").disabled = false; }
+  }
+  $("#composer").addEventListener("submit", e => { e.preventDefault(); ask($("#prompt").value); });
+  $("#prompt").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask($("#prompt").value); } });
+  $("#chips").addEventListener("click", e => { const c = e.target.closest(".chip"); if (c) ask(c.textContent); });
+
+  // ---- boot
+  render();
+  (async () => {
+    const c = window.claude;
+    if (!c?.use) { $("#status").textContent = "Apri la pagina su claude.ai per accedere all'archivio condiviso."; return; }
+    [db, user, sample] = await Promise.all([c.use("db"), c.use("user"), c.use("sample")]);
+    if (!sample) { $("#ai-note").hidden = false; $("#ai-note").textContent = "L'assistente non è disponibile in questa visualizzazione."; }
+    if (!db) { $("#status").textContent = "Accedi a claude.ai per vedere i progetti."; return; }
+    try { myId = await user?.id?.() } catch {}
+    const timer = setTimeout(() => { $("#status").textContent = "L'archivio non risponde ancora: i dati potrebbero non essere aggiornati."; }, 10000);
+    const live = () => { clearTimeout(timer); $("#status").textContent = "Dati condivisi · aggiornati in tempo reale"; };
+    db.collection("progetti").onSnapshot(s => { progetti = s.docs.map(d => ({ id: d.id, ...d.data() })); loaded.p = true; if (!s.metadata?.fromCache) live(); render(); },
+      e => { clearTimeout(timer); loaded.p = true; $("#status").textContent = "Impossibile leggere i progetti (" + (e?.code || "errore") + ")."; render(); });
+    db.collection("attivita").onSnapshot(s => { attivita = s.docs.map(d => ({ id: d.id, ...d.data() })); loaded.a = true; render(); }, () => { loaded.a = true; render(); });
+    db.collection("note").orderBy("ts", "desc").limit(1000).onSnapshot(s => { note = s.docs.map(d => ({ id: d.id, ...d.data() })); loaded.n = true; render(); }, () => { loaded.n = true; render(); });
+  })();
+})();
+</script>
