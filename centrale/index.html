@@ -113,6 +113,7 @@ input, textarea { font: inherit; color: var(--ink); background: var(--panel); bo
         <div class="chips" id="chips">
           <button type="button" class="chip">Cosa c'è da fare oggi?</button>
           <button type="button" class="chip">Cosa devo riordinare in magazzino?</button>
+          <button type="button" class="chip">Quali progetti sono in ritardo?</button>
           <button type="button" class="chip">Ci sono impianti in scadenza nel registro?</button>
           <button type="button" class="chip">Riassumi le novità da tutte le app</button>
           <button type="button" class="chip">Quali clienti aspettano una risposta su WhatsApp?</button>
@@ -150,10 +151,11 @@ input, textarea { font: inherit; color: var(--ink); background: var(--panel); bo
     return m < 1 ? "adesso" : m < 60 ? m + " min fa" : m < 1440 ? Math.round(m / 60) + " h fa" : Math.round(m / 1440) + " g fa"; };
 
   // Collegamento con l'attività pianificata che sincronizza le app (impostato alla pubblicazione)
-  const SYNC_TRIGGER = "trig_01UBnA1dfRnUL24gnT2oFU4q";
+  const SYNC_TRIGGER = "trig_015Lrk8a2miNCiNgoLE6K4Hm";
 
   const APPS = [
     { id: "magazzino", nome: "Magazzino", url: "https://claude.ai/artifact/3KMbyJwr88sFrehoysSyNZ" },
+    { id: "progetti", nome: "Progetti", url: "https://claude.ai/artifact/8wx2W6yL4Zh2TBcibNxp8b" },
     { id: "registro", nome: "Registro impianti", url: "https://claude.ai/artifact/7LgWkDEoe2g4Hx7uMB41SK" },
     { id: "scheda", nome: "Scheda intervento", url: "https://claude.ai/artifact/VfKUgYaq7mD9PM5jX16yY8" },
     { id: "checklist", nome: "Checklist PA", url: "https://claude.ai/artifact/6dejna1KREtvp42EAoMden" },
@@ -165,7 +167,7 @@ input, textarea { font: inherit; color: var(--ink); background: var(--panel); bo
   const appName = id => APPS.find(a => a.id === id)?.nome || id;
 
   let db = null, user = null, sample = null, mcp = null, myId = null;
-  let chat = [], stato = {}, richieste = [], loaded = { chat: false, stato: false };
+  let chat = [], stato = {}, richieste = [], contatti = [], loaded = { chat: false, stato: false };
   const names = {};
 
   // ---------- render
@@ -257,7 +259,7 @@ input, textarea { font: inherit; color: var(--ink); background: var(--panel); bo
 
   // ---------- assistente
   const tools = [
-    { name: "stato_app", description: "Ultimo stato sincronizzato di una o di tutte le app GAC (magazzino, registro, scheda, checklist, agenda, posta, whatsapp, riepilogo). Per whatsapp i dettagli contengono le conversazioni recenti dei clienti con id conversazione, mittente e ultima richiesta. Include data dell'ultima sincronizzazione e dettagli.",
+    { name: "stato_app", description: "Ultimo stato sincronizzato di una o di tutte le app GAC (magazzino, progetti, registro, scheda, checklist, agenda, posta, whatsapp, riepilogo). Per whatsapp i dettagli contengono le conversazioni recenti dei clienti con id conversazione, mittente e ultima richiesta. Include data dell'ultima sincronizzazione e dettagli.",
       inputSchema: { type: "object", properties: { app: { type: "string", description: "id dell'app; vuoto = tutte" } } },
       execute: ({ app }) => { const ids = app ? [app] : APPS.map(a => a.id);
         return ids.map(id => { const s = stato[id]; return s ? { app: id, nome: appName(id), aggiornato: s.aggiornato ? new Date(s.aggiornato).toISOString().slice(0, 16) : null, riepilogo: s.riepilogo, punti: s.punti, dettagli: s.dettagli } : { app: id, nome: appName(id), stato: "non ancora sincronizzata" }; }); } },
@@ -265,16 +267,20 @@ input, textarea { font: inherit; color: var(--ink); background: var(--panel); bo
       inputSchema: { type: "object", properties: { testo: { type: "string" } } },
       execute: ({ testo }) => { const t = String(testo || "").toLowerCase();
         return chat.filter(m => !t || String(m.testo).toLowerCase().includes(t)).slice(-30).map(m => ({ quando: m.ts ? new Date(m.ts).toISOString().slice(0, 16) : "", chi: m.tipo === "utente" ? (m.autore === myId ? "utente attuale" : names[m.autore] || "collega") : m.tipo, testo: String(m.testo).slice(0, 600) })); } },
+    { name: "rubrica", description: "Rubrica dei contatti di GAC Impianti (nome, azienda, email, note). Leggi sempre le note: indicano anche chi NON va più contattato per un'azienda. Testo vuoto = tutti.",
+      inputSchema: { type: "object", properties: { testo: { type: "string" } } },
+      execute: ({ testo }) => { const t = String(testo || "").toLowerCase();
+        return contatti.filter(c => !t || [c.nome, c.azienda, c.email, c.note].join(" ").toLowerCase().includes(t)).slice(0, 40).map(c => ({ nome: c.nome, azienda: c.azienda, email: c.email, note: c.note })); } },
     { name: "elenco_richieste", description: "Richieste di aggiornamento verso le altre app, con stato (da_confermare, confermata, eseguita, errore, annullata) ed esito.",
       inputSchema: { type: "object", properties: {} },
       execute: () => richieste.slice(0, 30).map(r => ({ app: r.app, testo: r.testo, stato: r.stato, esito: r.esito || "", creata: r.creata ? new Date(r.creata).toISOString().slice(0, 16) : "" })) },
-    { name: "proponi_richiesta", description: "Prepara una richiesta di modifica per un'altra app (es. registrare uno scarico in magazzino, aggiungere una riga al registro impianti, creare un evento in agenda, aggiornare una scheda intervento, rispondere a un cliente su WhatsApp). Per app 'whatsapp' il testo deve contenere il destinatario (nome e numero o id conversazione come da stato_app) e, dopo 'Messaggio:', il testo esatto da inviare, cortese e in italiano. NON modifica nulla e NON invia nulla: compare nel riquadro 'Richieste alle app' e l'utente deve confermarla; viene eseguita alla sincronizzazione successiva. Scrivi il testo in modo completo e preciso (articolo, quantità, cantiere, date, cliente…).",
-      inputSchema: { type: "object", properties: { app: { type: "string", enum: ["magazzino", "registro", "scheda", "checklist", "agenda", "whatsapp"] }, testo: { type: "string" } }, required: ["app", "testo"] },
+    { name: "proponi_richiesta", description: "Prepara una richiesta di modifica per un'altra app (es. registrare uno scarico in magazzino, aggiungere un'attività o una nota di cantiere a un progetto o cambiarne lo stato, aggiungere una riga al registro impianti, creare un evento in agenda, aggiornare una scheda intervento, rispondere a un cliente su WhatsApp). Per app 'whatsapp' il testo deve contenere il destinatario (nome e numero o id conversazione come da stato_app) e, dopo 'Messaggio:', il testo esatto da inviare, cortese e in italiano. NON modifica nulla e NON invia nulla: compare nel riquadro 'Richieste alle app' e l'utente deve confermarla; viene eseguita alla sincronizzazione successiva. Scrivi il testo in modo completo e preciso (articolo, quantità, cantiere, date, cliente…).",
+      inputSchema: { type: "object", properties: { app: { type: "string", enum: ["magazzino", "progetti", "registro", "scheda", "checklist", "agenda", "whatsapp"] }, testo: { type: "string" } }, required: ["app", "testo"] },
       execute: async ({ app, testo }) => { if (!testo?.trim()) throw new Error("testo vuoto");
         await db.collection("richieste").add({ app, testo: String(testo).slice(0, 1000), stato: "da_confermare", creata: Date.now(), autore: myId || "" });
         return { esito: "richiesta creata, in attesa di conferma dell'utente nel riquadro Richieste" }; } },
   ];
-  const SYSTEM = () => `Sei l'assistente di coordinamento di GAC Impianti (impianti elettrici, videosorveglianza, reti). Lavori nella "Centrale", una chat condivisa dal gruppo, e conosci lo stato delle altre app: Magazzino, Registro impianti, Scheda intervento, Checklist PA (Pubblica Amministrazione), Agenda (Google Calendar), Posta (Gmail), WhatsApp Business (messaggi dei clienti) e Riepilogo mattutino. Per rispondere a un cliente su WhatsApp prepara la risposta con proponi_richiesta (app whatsapp): non promettere date, prezzi o interventi che non risultano dai dati. Lo stato arriva da una sincronizzazione periodica: quando citi un dato, se è vecchio di molte ore dillo. Usa sempre gli strumenti per leggere stato e chat, non inventare numeri, nomi o date. Per cambiare qualcosa in un'altra app usa proponi_richiesta e spiega che va confermata nel riquadro "Richieste alle app" e che verrà eseguita alla prossima sincronizzazione. Rispondi in italiano, breve e pratico, testo semplice senza markdown. Oggi è ${new Date().toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`;
+  const SYSTEM = () => `Sei l'assistente di coordinamento di GAC Impianti (impianti elettrici, videosorveglianza, reti). Lavori nella "Centrale", una chat condivisa dal gruppo, e conosci lo stato delle altre app: Magazzino, Progetti (cantieri e commesse con attività, scadenze e diario), Registro impianti, Scheda intervento, Checklist PA (Pubblica Amministrazione), Agenda (Google Calendar), Posta (Gmail), WhatsApp Business (messaggi dei clienti) e Riepilogo mattutino. Per rispondere a un cliente su WhatsApp prepara la risposta con proponi_richiesta (app whatsapp): non promettere date, prezzi o interventi che non risultano dai dati. Lo stato arriva da una sincronizzazione periodica: quando citi un dato, se è vecchio di molte ore dillo. Per nomi ed email di persone e aziende usa lo strumento rubrica. Usa sempre gli strumenti per leggere stato e chat, non inventare numeri, nomi o date. Per cambiare qualcosa in un'altra app usa proponi_richiesta e spiega che va confermata nel riquadro "Richieste alle app" e che verrà eseguita alla prossima sincronizzazione. Rispondi in italiano, breve e pratico, testo semplice senza markdown. Oggi è ${new Date().toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`;
 
   let busy = false, pending = null;
   async function ask(text) {
@@ -341,6 +347,7 @@ input, textarea { font: inherit; color: var(--ink); background: var(--panel); bo
       e => { clearTimeout(timer); loaded.chat = true; $("#status").textContent = "Impossibile leggere la chat (" + (e?.code || "errore") + ")."; renderChat(); });
     db.collection("stato").onSnapshot(s => { stato = {}; s.docs.forEach(d => stato[d.id] = d.data()); loaded.stato = true; renderApps(); },
       () => { loaded.stato = true; renderApps(); });
+    db.collection("contatti").onSnapshot(s => { contatti = s.docs.map(d => ({ id: d.id, ...d.data() })); }, () => {});
     db.collection("richieste").orderBy("creata", "desc").limit(60).onSnapshot(s => { richieste = s.docs.map(d => ({ id: d.id, ...d.data() })); renderReqs(); }, () => {});
     setInterval(renderApps, 60000);
     setupSync();
