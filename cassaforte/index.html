@@ -1,0 +1,302 @@
+<title>Cassaforte GAC</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: cassaforte cifrata — schermata di sblocco centrata, poi tabella credenziali con ricerca; tutto si richiude da solo */
+:root {
+  --bg: #eef2f1; --panel: #ffffff; --ink: #18221f; --muted: #5a6a65; --line: #d3dcd9;
+  --accent: #1d6b55; --accent-ink: #ffffff; --accent-soft: #dcefe8;
+  --bad: #b3362b; --bad-soft: #f8e1de; --warn: #a96400; --warn-soft: #fcefd9;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111816; --panel: #19221f; --ink: #e3ebe8; --muted: #95a8a1; --line: #2c3a35;
+  --accent: #5cc4a2; --accent-ink: #0a211a; --accent-soft: #163a2f;
+  --bad: #f08a7e; --bad-soft: #3d1f1c; --warn: #f0b04a; --warn-soft: #3a2c10; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111816; --panel: #19221f; --ink: #e3ebe8; --muted: #95a8a1; --line: #2c3a35;
+  --accent: #5cc4a2; --accent-ink: #0a211a; --accent-soft: #163a2f;
+  --bad: #f08a7e; --bad-soft: #3d1f1c; --warn: #f0b04a; --warn-soft: #3a2c10; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45 }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 16px }
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: 28px; margin: 0 }
+h1 small { display: block; font-family: var(--f-mono); font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: .08em; text-transform: uppercase }
+.status { font-size: 12px; color: var(--muted) }
+input, textarea { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; width: 100%; min-width: 0 }
+input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+.btn { font: 600 13px var(--f-body); border-radius: 5px; padding: 8px 12px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink); white-space: nowrap }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
+.btn.ghost { border-color: transparent; background: none; color: var(--muted); padding: 4px 8px }
+.btn:disabled { opacity: .5; cursor: default }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; min-width: 0 }
+label { display: grid; gap: 4px; font-size: 12px; color: var(--muted) }
+.err { color: var(--bad); font-size: 13px; min-height: 1.2em }
+.sub { color: var(--muted); font-size: 12px }
+
+.lock { max-width: 420px; width: 100%; justify-self: center; padding: 22px; display: grid; gap: 14px }
+.lock h2 { font-family: var(--f-display); font-size: 22px; margin: 0 }
+.shield { width: 44px; height: 44px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font: 700 20px var(--f-mono) }
+.warnbox { background: var(--warn-soft); color: var(--ink); border-radius: 6px; padding: 10px 12px; font-size: 13px }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.toolbar input { flex: 1 1 220px; width: auto }
+.scroll { overflow-x: auto }
+table { width: 100%; border-collapse: collapse; font-size: 13px }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; padding: 10px; border-bottom: 1px solid var(--line); white-space: nowrap }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle }
+tr:last-child td { border-bottom: 0 }
+.mono { font-family: var(--f-mono); font-size: 12.5px }
+.cell { display: flex; align-items: center; gap: 4px; flex-wrap: wrap }
+.secret { font-family: var(--f-mono); font-size: 12.5px; letter-spacing: .04em }
+.missing { color: var(--warn); font-size: 12px }
+.rowact { display: flex; gap: 4px; justify-content: flex-end }
+.empty { padding: 28px 16px; text-align: center; color: var(--muted) }
+a { color: var(--accent) }
+
+dialog { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); padding: 0; width: min(480px, calc(100vw - 32px)) }
+dialog::backdrop { background: rgb(0 0 0 / .35) }
+dialog form { display: grid; gap: 12px; padding: 18px }
+dialog h2 { font-family: var(--f-display); font-size: 20px; margin: 0 }
+.pwrow { display: flex; gap: 6px }
+.actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; z-index: 20 }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1><small>GAC Impianti · accessi e credenziali</small>Cassaforte</h1>
+    <div class="status" id="status">Collegamento…</div>
+  </header>
+
+  <!-- SBLOCCO / CREAZIONE -->
+  <section class="panel lock" id="v-lock">
+    <div class="shield" aria-hidden="true">***</div>
+    <h2 id="l-title">Apri la cassaforte</h2>
+    <p class="sub" id="l-text" style="margin:0">Le credenziali sono cifrate con la tua password principale. Senza di essa nessuno può leggerle, nemmeno Claude.</p>
+    <form id="f-lock" style="display:grid;gap:12px">
+      <label>Password principale<input type="password" id="l-pw" autocomplete="current-password" required minlength="10"></label>
+      <label id="l-pw2-wrap" hidden>Ripeti la password principale<input type="password" id="l-pw2" autocomplete="new-password"></label>
+      <div class="warnbox" id="l-warn" hidden>Scegli una password lunga (almeno 10 caratteri) che non usi altrove e scrivila su carta in un posto sicuro. <b>Se la dimentichi le credenziali non si possono recuperare.</b></div>
+      <div class="err" id="l-err"></div>
+      <button class="btn primary" id="l-btn" disabled>Apri</button>
+    </form>
+  </section>
+
+  <!-- ELENCO -->
+  <section id="v-list" hidden style="display:grid;gap:12px">
+    <div class="toolbar">
+      <input type="search" id="q" placeholder="Cerca servizio, utente, indirizzo…">
+      <button class="btn primary" id="b-new">+ Nuova credenziale</button>
+      <button class="btn" id="b-lock">Chiudi</button>
+    </div>
+    <div class="panel scroll">
+      <table>
+        <thead><tr><th>Servizio</th><th>Nome utente</th><th>Password</th><th>Note</th><th></th></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+      <div class="empty" id="empty" hidden>Nessuna credenziale. Premi «+ Nuova credenziale» per aggiungere la prima.</div>
+    </div>
+    <p class="sub" style="margin:0" id="autolock">Si richiude da sola dopo 5 minuti senza attività.</p>
+  </section>
+</div>
+
+<dialog id="d-edit">
+  <form id="f-edit" method="dialog">
+    <h2 id="e-title">Nuova credenziale</h2>
+    <label>Servizio<input id="e-servizio" required maxlength="80" placeholder="es. Aruba · Area Clienti"></label>
+    <label>Indirizzo di accesso<input id="e-url" maxlength="200" placeholder="es. https://admin.aruba.it"></label>
+    <label>Nome utente<input id="e-user" maxlength="120" autocomplete="off"></label>
+    <label>Password
+      <div class="pwrow"><input id="e-pw" type="password" maxlength="200" autocomplete="new-password">
+        <button class="btn" type="button" id="e-show">Mostra</button><button class="btn" type="button" id="e-gen">Genera</button></div></label>
+    <label>Note<textarea id="e-note" rows="2" maxlength="500"></textarea></label>
+    <div class="err" id="e-err"></div>
+    <div class="actions">
+      <button class="btn ghost" id="e-del" type="button" hidden>Elimina</button>
+      <button class="btn" type="button" data-close>Annulla</button>
+      <button class="btn primary" id="e-save">Salva</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="d-confirm">
+  <form method="dialog" style="gap:16px">
+    <h2>Eliminare la credenziale?</h2>
+    <p id="c-text" style="margin:0"></p>
+    <div class="actions"><button class="btn" value="no">Annulla</button><button class="btn primary" value="yes">Elimina</button></div>
+  </form>
+</dialog>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const ITER = 600000;
+
+  let db = null, docRef = null, stored = null, loaded = false;
+  let key = null, salt = null, items = [], shown = new Set(), version = 0;
+  let toastT; const toast = t => { const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 2400); };
+
+  async function deriveKey(pw, saltBytes) {
+    const base = await crypto.subtle.importKey("raw", enc.encode(pw), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey({ name: "PBKDF2", salt: saltBytes, iterations: ITER, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  }
+  async function seal() {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify(items)));
+    return { v: 1, kdf: "PBKDF2-SHA256", iter: ITER, salt: b64(salt), iv: b64(iv), ct: b64(ct), aggiornato: Date.now() };
+  }
+  async function persist() {
+    const d = await seal();
+    await docRef.set(d);
+  }
+
+  // ---- schermata di sblocco
+  function lockView() {
+    const nuovo = loaded && !stored;
+    $("#v-lock").hidden = false; $("#v-list").hidden = true;
+    $("#l-title").textContent = nuovo ? "Crea la cassaforte" : "Apri la cassaforte";
+    $("#l-pw2-wrap").hidden = !nuovo; $("#l-warn").hidden = !nuovo;
+    $("#l-pw").autocomplete = nuovo ? "new-password" : "current-password";
+    $("#l-btn").textContent = nuovo ? "Crea e apri" : "Apri";
+    $("#l-btn").disabled = !loaded || !db;
+  }
+  function lock(msg) {
+    key = null; items = []; shown.clear(); $("#body").innerHTML = "";
+    document.querySelectorAll("dialog[open]").forEach(d => d.close());
+    $("#l-pw").value = ""; $("#l-pw2").value = ""; $("#l-err").textContent = msg || "";
+    lockView();
+  }
+  $("#f-lock").addEventListener("submit", async e => {
+    e.preventDefault();
+    const pw = $("#l-pw").value; $("#l-err").textContent = "";
+    $("#l-btn").disabled = true; $("#l-btn").textContent = "Un momento…";
+    try {
+      if (!stored) {
+        if (pw.length < 10) throw new Error("La password principale deve avere almeno 10 caratteri.");
+        if (pw !== $("#l-pw2").value) throw new Error("Le due password non coincidono.");
+        salt = crypto.getRandomValues(new Uint8Array(16)); key = await deriveKey(pw, salt);
+        items = [{ id: crypto.randomUUID(), servizio: "Aruba · Area Clienti", url: "https://admin.aruba.it", user: "", pw: "", note: "Inserisci nome utente e la nuova password dopo averla cambiata" }];
+        await persist();
+      } else {
+        salt = unb64(stored.salt); const k = await deriveKey(pw, salt);
+        try { const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(stored.iv) }, k, unb64(stored.ct)); items = JSON.parse(dec.decode(pt)); }
+        catch { throw new Error("Password principale errata."); }
+        key = k;
+      }
+      $("#l-pw").value = ""; $("#l-pw2").value = "";
+      $("#v-lock").hidden = true; $("#v-list").hidden = false; render(); touch();
+    } catch (err) {
+      key = null; $("#l-err").textContent = err?.code === "permission_denied" ? "Non hai i permessi per salvare." : (err?.message || "Operazione non riuscita.");
+    } finally { lockView(); if (key) { $("#v-lock").hidden = true; } }
+  });
+
+  // ---- chiusura automatica
+  let idleT;
+  function touch() { clearTimeout(idleT); if (key) idleT = setTimeout(() => lock("Chiusa per inattività."), 5 * 60 * 1000); }
+  ["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, touch, { passive: true }));
+  let hiddenAt = 0;
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) hiddenAt = Date.now();
+    else if (key && Date.now() - hiddenAt > 60 * 1000) lock("Chiusa perché la pagina è rimasta in secondo piano.");
+  });
+  $("#b-lock").onclick = () => lock();
+
+  // ---- elenco
+  function render() {
+    if (!key) return;
+    const q = $("#q").value.trim().toLowerCase();
+    const rows = items.filter(i => !q || [i.servizio, i.user, i.url, i.note].join(" ").toLowerCase().includes(q))
+      .sort((a, b) => a.servizio.localeCompare(b.servizio, "it"));
+    $("#body").innerHTML = rows.map(i => `<tr>
+      <td><b>${esc(i.servizio)}</b>${i.url ? `<div class="sub mono">${/^https?:\/\//.test(i.url) ? `<a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url)}</a>` : esc(i.url)}</div>` : ""}</td>
+      <td><div class="cell"><span class="mono">${esc(i.user) || '<span class="missing">da inserire</span>'}</span>${i.user ? `<button class="btn ghost" data-copy="user" data-id="${i.id}">Copia</button>` : ""}</div></td>
+      <td><div class="cell">${i.pw ? `<span class="secret">${shown.has(i.id) ? esc(i.pw) : "••••••••••"}</span>
+        <button class="btn ghost" data-show="${i.id}">${shown.has(i.id) ? "Nascondi" : "Mostra"}</button><button class="btn ghost" data-copy="pw" data-id="${i.id}">Copia</button>` : '<span class="missing">da inserire</span>'}</div></td>
+      <td class="sub">${esc(i.note)}</td>
+      <td><div class="rowact"><button class="btn ghost" data-ed="${i.id}">Modifica</button></div></td></tr>`).join("");
+    $("#empty").hidden = rows.length > 0;
+    $("#empty").textContent = items.length ? "Nessuna credenziale corrisponde alla ricerca." : "Nessuna credenziale. Premi «+ Nuova credenziale» per aggiungere la prima.";
+  }
+  $("#q").addEventListener("input", render);
+  $("#body").addEventListener("click", async e => {
+    const s = e.target.closest("[data-show]"), c = e.target.closest("[data-copy]"), ed = e.target.closest("[data-ed]");
+    if (s) { const id = s.dataset.show; shown.has(id) ? shown.delete(id) : shown.add(id); render(); }
+    if (c) { const it = items.find(i => i.id === c.dataset.id);
+      try { await navigator.clipboard.writeText(c.dataset.copy === "pw" ? it.pw : it.user); toast(c.dataset.copy === "pw" ? "Password copiata" : "Nome utente copiato"); }
+      catch { shown.add(it.id); render(); toast("Copia non riuscita: seleziona il testo a mano"); } }
+    if (ed) openEdit(items.find(i => i.id === ed.dataset.ed));
+  });
+
+  // ---- modifica
+  document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => b.closest("dialog").close());
+  let editing = null;
+  function openEdit(it) {
+    if (!key) return;
+    editing = it || null;
+    $("#e-title").textContent = it ? "Modifica credenziale" : "Nuova credenziale";
+    $("#e-servizio").value = it?.servizio || ""; $("#e-url").value = it?.url || ""; $("#e-user").value = it?.user || "";
+    $("#e-pw").value = it?.pw || ""; $("#e-pw").type = "password"; $("#e-show").textContent = "Mostra";
+    $("#e-note").value = it?.note || ""; $("#e-del").hidden = !it; $("#e-err").textContent = "";
+    $("#d-edit").showModal();
+  }
+  $("#b-new").onclick = () => openEdit();
+  $("#e-show").onclick = () => { const p = $("#e-pw"); p.type = p.type === "password" ? "text" : "password"; $("#e-show").textContent = p.type === "password" ? "Mostra" : "Nascondi"; };
+  $("#e-gen").onclick = () => {
+    const set = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#%*-_+?";
+    const r = crypto.getRandomValues(new Uint32Array(18));
+    $("#e-pw").value = Array.from(r, n => set[n % set.length]).join(""); $("#e-pw").type = "text"; $("#e-show").textContent = "Nascondi";
+  };
+  $("#f-edit").addEventListener("submit", async e => {
+    e.preventDefault();
+    const rec = { id: editing?.id || crypto.randomUUID(), servizio: $("#e-servizio").value.trim(), url: $("#e-url").value.trim(),
+      user: $("#e-user").value.trim(), pw: $("#e-pw").value, note: $("#e-note").value.trim() };
+    if (!rec.servizio) { $("#e-err").textContent = "Indica il servizio."; return; }
+    const prima = items;
+    items = editing ? items.map(i => i.id === rec.id ? rec : i) : [...items, rec];
+    $("#e-save").disabled = true;
+    try { await persist(); $("#d-edit").close(); render(); toast("Salvato e cifrato"); }
+    catch (err) { items = prima; $("#e-err").textContent = err?.code === "permission_denied" ? "Non hai i permessi per salvare." : "Salvataggio non riuscito: riprova."; }
+    finally { $("#e-save").disabled = false; }
+  });
+  $("#e-del").onclick = () => { $("#c-text").textContent = `«${editing.servizio}» verrà eliminata. Non si può annullare.`; $("#d-confirm").returnValue = ""; $("#d-confirm").showModal(); };
+  $("#d-confirm").addEventListener("close", async () => {
+    if ($("#d-confirm").returnValue !== "yes" || !editing) return;
+    const prima = items; items = items.filter(i => i.id !== editing.id);
+    try { await persist(); $("#d-edit").close(); render(); toast("Eliminata"); } catch { items = prima; $("#e-err").textContent = "Eliminazione non riuscita."; }
+  });
+
+  // ---- avvio
+  lockView();
+  (async () => {
+    const c = window.claude;
+    if (!c?.use) { $("#status").textContent = "Apri la pagina su claude.ai."; return; }
+    if (!crypto?.subtle) { $("#status").textContent = "Questo browser non supporta la cifratura necessaria."; return; }
+    const [d, user] = await Promise.all([c.use("db"), c.use("user")]);
+    db = d;
+    if (!db || !user) { $("#status").textContent = "Accedi a claude.ai per usare la cassaforte."; return; }
+    const uid = await user.id();
+    docRef = db.collection("data/users/" + uid).doc("cassaforte");
+    const timer = setTimeout(() => { $("#status").textContent = "L'archivio non risponde ancora."; }, 10000);
+    docRef.onSnapshot(s => {
+      if (!s.exists && s.metadata?.fromCache) return;
+      clearTimeout(timer);
+      stored = s.exists ? s.data() : null; loaded = true;
+      $("#status").textContent = "Cifrata sul tuo dispositivo · visibile solo a te";
+      if (!key) lockView();
+    }, e => { clearTimeout(timer); $("#status").textContent = "Impossibile leggere la cassaforte (" + (e?.code || "errore") + ")."; });
+  })();
+})();
+</script>
