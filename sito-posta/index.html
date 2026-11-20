@@ -1,0 +1,602 @@
+<title>Sito e Posta GAC</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: pannello di controllo del dominio — intestazione con lo stato del dominio, indicatori, schede Posta / Richieste / Sito / Scadenze / Assistente */
+:root {
+  --bg: #f1f4f6; --panel: #ffffff; --ink: #1a2329; --muted: #5a6872; --line: #d6dde2;
+  --accent: #1f6fa8; --accent-ink: #ffffff; --accent-soft: #e0eef8;
+  --ok: #2f7d4f; --ok-soft: #e1f1e7; --warn: #a96400; --warn-soft: #fcefd9; --bad: #b3362b; --bad-soft: #f8e1de;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12181c; --panel: #1a2228; --ink: #e4eaee; --muted: #97a6b0; --line: #2d3940;
+  --accent: #5fb0ea; --accent-ink: #08202f; --accent-soft: #15324a;
+  --ok: #6cc28f; --ok-soft: #1c3226; --warn: #f0b04a; --warn-soft: #3a2c10; --bad: #f08a7e; --bad-soft: #3d1f1c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12181c; --panel: #1a2228; --ink: #e4eaee; --muted: #97a6b0; --line: #2d3940;
+  --accent: #5fb0ea; --accent-ink: #08202f; --accent-soft: #15324a;
+  --ok: #6cc28f; --ok-soft: #1c3226; --warn: #f0b04a; --warn-soft: #3a2c10; --bad: #f08a7e; --bad-soft: #3d1f1c; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45 }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 18px }
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: 28px; letter-spacing: .01em; margin: 0; text-wrap: balance }
+h1 small { display: block; font-family: var(--f-mono); font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: .08em; text-transform: uppercase }
+.domain { font-family: var(--f-mono); font-size: 13px; color: var(--accent) }
+.status { font-size: 12px; color: var(--muted) }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px }
+.kpi b { display: block; font-family: var(--f-display); font-size: 24px; font-variant-numeric: tabular-nums }
+.kpi span { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted) }
+.kpi.alert b { color: var(--bad) }
+@media (max-width: 640px) { .kpis { grid-template-columns: repeat(2, minmax(0,1fr)) } }
+
+nav.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); overflow-x: auto }
+nav.tabs button { font: 600 14px var(--f-body); background: none; border: 0; color: var(--muted); padding: 10px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent) }
+nav.tabs .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: var(--bad); color: var(--panel); font-size: 11px; text-align: center }
+
+.view { display: grid; gap: 12px; align-content: start }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.toolbar h2 { font-family: var(--f-display); font-size: 18px; margin: 0; flex: 1 1 auto }
+input, select, textarea { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; min-width: 0; width: 100% }
+input[type=checkbox] { width: auto }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+.btn { font: 600 13px var(--f-body); border-radius: 5px; padding: 8px 12px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink); white-space: nowrap }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
+.btn.ghost { border-color: transparent; background: none; color: var(--muted); padding: 4px 8px }
+.btn:disabled { opacity: .5; cursor: default }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; min-width: 0 }
+.scroll { overflow-x: auto }
+table { width: 100%; border-collapse: collapse; font-size: 13px }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; padding: 10px; border-bottom: 1px solid var(--line); white-space: nowrap }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top }
+tr:last-child td { border-bottom: 0 }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.mono { font-family: var(--f-mono); font-size: 12.5px }
+.sub { color: var(--muted); font-size: 12px }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; background: var(--accent-soft); color: var(--accent) }
+.pill.ok { background: var(--ok-soft); color: var(--ok) } .pill.warn { background: var(--warn-soft); color: var(--warn) } .pill.bad { background: var(--bad-soft); color: var(--bad) }
+.pill.mute { background: var(--bg); color: var(--muted) }
+.rowact { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap }
+.empty { padding: 28px 16px; text-align: center; color: var(--muted) }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start }
+@media (max-width: 860px) { .cols { grid-template-columns: minmax(0, 1fr) } }
+.ref { padding: 14px 16px; display: grid; gap: 10px }
+.ref h3 { margin: 0; font-family: var(--f-display); font-size: 16px }
+.ref dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; font-size: 13px }
+.ref dt { color: var(--muted) }
+.ref dd { margin: 0; font-family: var(--f-mono); font-size: 12.5px; overflow-wrap: anywhere }
+
+/* richieste */
+.req-list { display: grid; gap: 10px }
+.req { padding: 12px 14px; display: grid; gap: 8px }
+.req header { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between }
+.req .body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; color: var(--muted); max-height: 9em; overflow: auto; border-left: 2px solid var(--line); padding-left: 10px }
+.req .draft { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13.5px; background: var(--accent-soft); border-radius: 6px; padding: 10px 12px }
+
+/* checklist */
+.check { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 14px; border-bottom: 1px solid var(--line) }
+.check:last-child { border-bottom: 0 }
+.check.done .t { text-decoration: line-through; color: var(--muted) }
+
+dialog { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); padding: 0; width: min(500px, calc(100vw - 32px)) }
+dialog::backdrop { background: rgb(0 0 0 / .35) }
+dialog form { display: grid; gap: 12px; padding: 18px }
+dialog h2 { font-family: var(--f-display); font-size: 20px; margin: 0 }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+label { display: grid; gap: 4px; font-size: 12px; color: var(--muted) }
+label.inline { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px }
+.actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap }
+.err { color: var(--bad); font-size: 12px; min-height: 1em }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; z-index: 20 }
+
+/* assistente */
+.chat { display: grid; grid-template-rows: 1fr auto; min-height: 460px }
+.log { padding: 16px; display: grid; gap: 12px; align-content: start; overflow-y: auto; max-height: 60vh }
+.msg { max-width: 78ch; white-space: pre-wrap; overflow-wrap: anywhere }
+.msg.user { justify-self: end; background: var(--accent-soft); padding: 8px 12px; border-radius: 8px 8px 2px 8px }
+.msg.bot::before { content: "ASSISTENTE"; display: block; font: 500 10px var(--f-mono); letter-spacing: .1em; color: var(--accent); margin-bottom: 2px }
+.proposal { border: 1px dashed var(--accent); border-radius: 6px; padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between }
+.proposal.done { border-style: solid; border-color: var(--line); color: var(--muted) }
+.composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); flex-wrap: wrap }
+.composer textarea { flex: 1 1 260px; resize: vertical; min-height: 42px; width: auto }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px }
+.chip { font-size: 12px; border: 1px solid var(--line); border-radius: 14px; padding: 4px 10px; background: none; color: var(--ink); cursor: pointer }
+.note { font-size: 12px; color: var(--muted); padding: 12px 16px }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1><small>GAC Impianti · dominio, sito e posta</small>Sito e Posta</h1>
+    <div style="display:grid;gap:2px;justify-items:end">
+      <span class="domain">sito: web.gacimpianti.com · posta: @gacimpianti.com · Aruba</span>
+      <div class="status" id="status">Collegamento all'archivio…</div>
+    </div>
+  </header>
+
+  <section class="kpis" aria-label="Riepilogo">
+    <div class="kpi"><span>Caselle e indirizzi</span><b id="k-cas">–</b></div>
+    <div class="kpi" id="k-req-box"><span>Richieste da evadere</span><b id="k-req">–</b></div>
+    <div class="kpi" id="k-sca-box"><span>Scadenze entro 60 gg</span><b id="k-sca">–</b></div>
+    <div class="kpi"><span>Attività aperte</span><b id="k-att">–</b></div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-view="req" id="t-req">Richieste clienti</button>
+    <button role="tab" aria-selected="false" data-view="mail">Caselle</button>
+    <button role="tab" aria-selected="false" data-view="sito" id="t-sito">Sito</button>
+    <button role="tab" aria-selected="false" data-view="sca" id="t-sca">Scadenze</button>
+    <button role="tab" aria-selected="false" data-view="ai">Assistente</button>
+  </nav>
+
+  <!-- RICHIESTE -->
+  <section id="v-req" class="view">
+    <div class="toolbar">
+      <h2>Mail ricevute su info@ da gestire</h2>
+      <select id="f-req" style="width:auto"><option value="aperte">Da evadere</option><option value="tutte">Tutte</option><option value="chiusa">Chiuse</option></select>
+      <button class="btn primary" id="b-req">+ Incolla una mail</button>
+    </div>
+    <p class="sub" style="margin:0">Copia una mail arrivata su Aruba (webmail o Outlook) e incollala qui: l'assistente prepara la risposta, tu la rileggi, la copi e la invii dalla tua casella.</p>
+    <div class="req-list" id="req-list"></div>
+    <div class="panel empty" id="req-empty" hidden></div>
+  </section>
+
+  <!-- CASELLE -->
+  <section id="v-mail" class="view" hidden>
+    <div class="toolbar">
+      <h2>Caselle del dominio</h2>
+      <button class="btn primary" id="b-cas">+ Aggiungi casella</button>
+    </div>
+    <div class="panel scroll">
+      <table>
+        <thead><tr><th>Indirizzo</th><th>Tipo</th><th>Chi la usa / a cosa serve</th><th>Inoltro</th><th class="num">Spazio</th><th></th></tr></thead>
+        <tbody id="cas-body"></tbody>
+      </table>
+      <div class="empty" id="cas-empty" hidden></div>
+    </div>
+    <div class="cols">
+      <div class="panel ref">
+        <h3>Impostazioni posta Aruba</h3>
+        <dl>
+          <dt>Webmail</dt><dd>webmail.aruba.it</dd>
+          <dt>IMAP in entrata</dt><dd>imaps.aruba.it · porta 993 · SSL</dd>
+          <dt>POP3 in entrata</dt><dd>pop3s.aruba.it · porta 995 · SSL</dd>
+          <dt>SMTP in uscita</dt><dd>smtps.aruba.it · porta 465 · SSL, autenticazione obbligatoria</dd>
+          <dt>Nome utente</dt><dd>l'indirizzo completo, es. info@gacimpianti.com</dd>
+        </dl>
+      </div>
+      <div class="panel ref">
+        <h3>Posta certificata (PEC Aruba)</h3>
+        <dl>
+          <dt>Webmail</dt><dd>webmail.pec.it</dd>
+          <dt>IMAP</dt><dd>imaps.pec.aruba.it · porta 993 · SSL</dd>
+          <dt>SMTP</dt><dd>smtps.pec.aruba.it · porta 465 · SSL</dd>
+        </dl>
+        <p class="sub" style="margin:0">Le password non vanno salvate in questa pagina né mandate per mail: tienile in un gestore di password.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SITO -->
+  <section id="v-sito" class="view" hidden>
+    <div class="cols">
+      <div style="display:grid;gap:10px;min-width:0">
+        <div class="toolbar"><h2>Pagine del sito</h2><button class="btn primary" id="b-pag">+ Pagina</button></div>
+        <div class="panel scroll">
+          <table>
+            <thead><tr><th>Pagina</th><th>Stato</th><th>Note</th><th></th></tr></thead>
+            <tbody id="pag-body"></tbody>
+          </table>
+          <div class="empty" id="pag-empty" hidden></div>
+        </div>
+      </div>
+      <div style="display:grid;gap:10px;min-width:0">
+        <div class="toolbar"><h2>Cose da fare</h2><button class="btn" id="b-att">+ Attività</button></div>
+        <div class="panel" id="att-list"></div>
+        <div class="panel empty" id="att-empty" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCADENZE -->
+  <section id="v-sca" class="view" hidden>
+    <div class="toolbar">
+      <h2>Rinnovi e scadenze</h2>
+      <button class="btn primary" id="b-sca">+ Scadenza</button>
+    </div>
+    <div class="panel scroll">
+      <table>
+        <thead><tr><th>Servizio</th><th>Tipo</th><th>Scadenza</th><th>Stato</th><th class="num">Costo/anno</th><th>Rinnovo</th><th></th></tr></thead>
+        <tbody id="sca-body"></tbody>
+      </table>
+      <div class="empty" id="sca-empty" hidden></div>
+    </div>
+    <p class="sub" style="margin:0">Le date si trovano nell'Area Clienti Aruba, sezione «Servizi», o nelle mail di promemoria rinnovo di Aruba.</p>
+  </section>
+
+  <!-- ASSISTENTE -->
+  <section id="v-ai" class="view" hidden>
+    <div class="panel chat">
+      <div>
+        <div class="log" id="log" aria-live="polite">
+          <div class="msg bot">Ciao. Posso rispondere alle richieste dei clienti, scrivere o rivedere i testi del sito, spiegarti come configurare la posta Aruba su telefono o PC e tenere d'occhio le scadenze. Quando devo salvare o cambiare qualcosa ti mostro un riquadro da confermare. Non invio mai mail al posto tuo.</div>
+        </div>
+        <div class="chips" id="chips">
+          <button class="chip">Cosa scade nei prossimi mesi?</button>
+          <button class="chip">Come configuro info@ sull'iPhone?</button>
+          <button class="chip">Scrivi il testo per la pagina Servizi</button>
+          <button class="chip">Le mail di info@ finiscono in spam, cosa controllo?</button>
+        </div>
+      </div>
+      <form class="composer" id="composer">
+        <textarea id="prompt" rows="2" placeholder="Scrivi una richiesta… (Invio per inviare)"></textarea>
+        <button class="btn primary" id="send">Invia</button>
+      </form>
+      <div class="note" id="ai-note" hidden></div>
+    </div>
+  </section>
+</div>
+
+<!-- dialog generico di modifica -->
+<dialog id="d-edit">
+  <form id="f-edit" method="dialog">
+    <h2 id="e-title"></h2>
+    <div id="e-fields" style="display:grid;gap:10px"></div>
+    <div class="err" id="e-err"></div>
+    <div class="actions">
+      <button class="btn ghost" id="e-del" type="button" hidden>Elimina</button>
+      <button class="btn" type="button" data-close>Annulla</button>
+      <button class="btn primary" id="e-save">Salva</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="d-confirm">
+  <form method="dialog" style="gap:16px">
+    <h2>Eliminare?</h2>
+    <p id="c-text" style="margin:0"></p>
+    <div class="actions"><button class="btn" value="no">Annulla</button><button class="btn primary" value="yes">Elimina</button></div>
+  </form>
+</dialog>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const fmtE = n => n ? Number(n).toLocaleString("it-IT", { style: "currency", currency: "EUR" }) : "–";
+  const fmtD = s => s ? new Date(s + "T12:00:00").toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" }) : "";
+  const fmtT = t => new Date(t).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const today = () => new Date().toISOString().slice(0, 10);
+  const giorni = s => s ? Math.round((new Date(s + "T12:00:00") - new Date(today() + "T12:00:00")) / 864e5) : null;
+
+  let db = null, sample = null;
+  const data = { caselle: [], scadenze: [], pagine: [], attivita: [], richieste: [] };
+  const loaded = {};
+
+  // ---- schemi delle sezioni (per form, assistente e validazione)
+  const SCHEMA = {
+    caselle: { label: "casella", fields: [
+      { k: "indirizzo", l: "Indirizzo", req: true, ph: "es. info@gacimpianti.com" },
+      { k: "tipo", l: "Tipo", opts: ["Casella", "Alias / inoltro", "PEC"] },
+      { k: "uso", l: "Chi la usa / a cosa serve", ph: "es. richieste clienti, fatture fornitori" },
+      { k: "inoltro", l: "Inoltra a", ph: "lascia vuoto se non inoltra" },
+      { k: "spazioGB", l: "Spazio (GB)", type: "number" },
+      { k: "note", l: "Note", area: true } ] },
+    scadenze: { label: "scadenza", fields: [
+      { k: "servizio", l: "Servizio", req: true, ph: "es. Dominio gacimpianti.com" },
+      { k: "tipo", l: "Tipo", opts: ["Dominio", "Hosting", "Posta", "PEC", "Certificato SSL", "Altro"] },
+      { k: "data", l: "Data di scadenza", type: "date" },
+      { k: "costo", l: "Costo annuo €", type: "number" },
+      { k: "rinnovoAuto", l: "Rinnovo automatico attivo", type: "checkbox" },
+      { k: "note", l: "Note", area: true } ] },
+    pagine: { label: "pagina", fields: [
+      { k: "titolo", l: "Titolo pagina", req: true, ph: "es. Servizi" },
+      { k: "url", l: "Indirizzo", ph: "es. web.gacimpianti.com/servizi" },
+      { k: "stato", l: "Stato", opts: ["Aggiornata", "Da aggiornare", "Da creare"] },
+      { k: "note", l: "Cosa cambiare", area: true } ] },
+    attivita: { label: "attività", fields: [
+      { k: "titolo", l: "Attività", req: true },
+      { k: "area", l: "Area", opts: ["Sito", "Posta", "Sicurezza", "Amministrazione"] },
+      { k: "note", l: "Note", area: true } ] },
+    richieste: { label: "richiesta", fields: [
+      { k: "mittente", l: "Mittente", ph: "nome o indirizzo di chi scrive" },
+      { k: "oggetto", l: "Oggetto" },
+      { k: "testo", l: "Testo della mail", req: true, area: true, rows: 8 } ] },
+  };
+
+  // ---- tabs
+  document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
+  function show(v) {
+    document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === v)));
+    document.querySelectorAll(".view").forEach(s => s.hidden = s.id !== "v-" + v);
+    try { localStorage.setItem("sp-tab", v) } catch {}
+  }
+  try { const t = localStorage.getItem("sp-tab"); if (t && $("#v-" + t)) show(t) } catch {}
+
+  let toastT;
+  function toast(t) { const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 2600); }
+  async function copy(text) {
+    try { await navigator.clipboard.writeText(text); toast("Testo copiato"); }
+    catch { toast("Copia non riuscita: seleziona il testo e copialo a mano"); }
+  }
+
+  const statoScad = s => { const g = giorni(s.data);
+    if (g === null) return ["mute", "Data da inserire"];
+    if (g < 0) return ["bad", `Scaduto da ${-g} gg`];
+    if (g <= 30) return ["bad", `Tra ${g} gg`];
+    if (g <= 60) return ["warn", `Tra ${g} gg`];
+    return ["ok", `Tra ${g} gg`]; };
+  const pillPag = s => s === "Aggiornata" ? "ok" : s === "Da creare" ? "bad" : "warn";
+
+  // ---- render
+  function render() {
+    const aperte = data.richieste.filter(r => r.stato !== "chiusa");
+    const sca60 = data.scadenze.filter(s => { const g = giorni(s.data); return g !== null && g <= 60; });
+    const attAperte = data.attivita.filter(a => !a.fatto);
+    $("#k-cas").textContent = data.caselle.length;
+    $("#k-req").textContent = aperte.length;
+    $("#k-sca").textContent = sca60.length;
+    $("#k-att").textContent = attAperte.length;
+    $("#k-req-box").classList.toggle("alert", aperte.length > 0);
+    $("#k-sca-box").classList.toggle("alert", sca60.length > 0);
+    $("#t-req").innerHTML = "Richieste clienti" + (aperte.length ? `<span class="badge">${aperte.length}</span>` : "");
+    $("#t-sca").innerHTML = "Scadenze" + (sca60.length ? `<span class="badge">${sca60.length}</span>` : "");
+
+    // richieste
+    const f = $("#f-req").value;
+    const reqs = data.richieste.filter(r => f === "tutte" || (f === "chiusa" ? r.stato === "chiusa" : r.stato !== "chiusa"))
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    $("#req-list").innerHTML = reqs.map(r => `<article class="panel req" data-id="${esc(r.id)}">
+      <header><div><b>${esc(r.oggetto || "(senza oggetto)")}</b> <span class="sub">· ${esc(r.mittente || "mittente non indicato")} · ${r.ts ? fmtT(r.ts) : ""}</span></div>
+        <span class="pill ${r.stato === "chiusa" ? "mute" : r.bozza ? "ok" : "warn"}">${r.stato === "chiusa" ? "Chiusa" : r.bozza ? "Risposta pronta" : "Da rispondere"}</span></header>
+      <div class="body">${esc(r.testo)}</div>
+      ${r.bozza ? `<div class="draft">${esc(r.bozza)}</div>` : ""}
+      <div class="rowact">
+        <button class="btn ghost" data-act="edit">Modifica</button>
+        ${r.stato !== "chiusa" ? `<button class="btn" data-act="draft">${r.bozza ? "Riscrivi risposta" : "Prepara risposta"}</button>` : ""}
+        ${r.bozza ? `<button class="btn" data-act="copy">Copia risposta</button>` : ""}
+        <button class="btn ${r.stato === "chiusa" ? "" : "primary"}" data-act="toggle">${r.stato === "chiusa" ? "Riapri" : "Segna come evasa"}</button>
+      </div></article>`).join("");
+    const re = $("#req-empty"); re.hidden = reqs.length > 0;
+    re.textContent = !loaded.richieste ? "Caricamento richieste…" : data.richieste.length ? "Nessuna richiesta in questo elenco." : "Nessuna richiesta salvata. Quando arriva una mail su info@, premi «+ Incolla una mail».";
+
+    // caselle
+    const cas = [...data.caselle].sort((a, b) => String(a.indirizzo).localeCompare(String(b.indirizzo)));
+    $("#cas-body").innerHTML = cas.map(c => `<tr>
+      <td class="mono">${esc(c.indirizzo)}</td><td><span class="pill ${c.tipo === "PEC" ? "warn" : ""}">${esc(c.tipo || "Casella")}</span></td>
+      <td>${esc(c.uso)}${c.note ? `<div class="sub">${esc(c.note)}</div>` : ""}</td><td class="mono">${esc(c.inoltro || "–")}</td>
+      <td class="num">${c.spazioGB ? esc(c.spazioGB) + " GB" : "–"}</td>
+      <td><div class="rowact"><button class="btn ghost" data-ed="caselle:${esc(c.id)}">Modifica</button></div></td></tr>`).join("");
+    const ce = $("#cas-empty"); ce.hidden = cas.length > 0;
+    ce.textContent = !loaded.caselle ? "Caricamento caselle…" : "Nessuna casella registrata. Aggiungi info@gacimpianti.com e le altre caselle del dominio.";
+
+    // pagine
+    const ord = { "Da creare": 0, "Da aggiornare": 1, "Aggiornata": 2 };
+    const pag = [...data.pagine].sort((a, b) => (ord[a.stato] ?? 1) - (ord[b.stato] ?? 1) || String(a.titolo).localeCompare(String(b.titolo), "it"));
+    $("#pag-body").innerHTML = pag.map(p => `<tr>
+      <td><b>${esc(p.titolo)}</b>${p.url ? `<div class="sub mono">${esc(p.url)}</div>` : ""}</td>
+      <td><span class="pill ${pillPag(p.stato)}">${esc(p.stato || "Da aggiornare")}</span></td>
+      <td>${esc(p.note)}</td>
+      <td><div class="rowact"><button class="btn ghost" data-ed="pagine:${esc(p.id)}">Modifica</button></div></td></tr>`).join("");
+    const pe = $("#pag-empty"); pe.hidden = pag.length > 0;
+    pe.textContent = !loaded.pagine ? "Caricamento pagine…" : "Nessuna pagina registrata. Aggiungi le pagine del sito (Home, Servizi, Contatti…) per tenere traccia di cosa aggiornare.";
+
+    // attività
+    const att = [...data.attivita].sort((a, b) => (a.fatto ? 1 : 0) - (b.fatto ? 1 : 0) || (a.ts || 0) - (b.ts || 0));
+    $("#att-list").innerHTML = att.map(a => `<div class="check ${a.fatto ? "done" : ""}">
+      <input type="checkbox" data-done="${esc(a.id)}" ${a.fatto ? "checked" : ""} aria-label="Segna come fatta">
+      <div><div class="t">${esc(a.titolo)}</div>${a.note ? `<div class="sub">${esc(a.note)}</div>` : ""}</div>
+      <div class="rowact"><span class="pill mute">${esc(a.area || "Sito")}</span><button class="btn ghost" data-ed="attivita:${esc(a.id)}">Modifica</button></div></div>`).join("");
+    $("#att-list").hidden = att.length === 0;
+    const ae = $("#att-empty"); ae.hidden = att.length > 0;
+    ae.textContent = !loaded.attivita ? "Caricamento attività…" : "Nessuna attività. Aggiungi le cose da sistemare su sito e posta.";
+
+    // scadenze
+    const sca = [...data.scadenze].sort((a, b) => (a.data || "9999") < (b.data || "9999") ? -1 : 1);
+    $("#sca-body").innerHTML = sca.map(s => { const [k, l] = statoScad(s); return `<tr>
+      <td><b>${esc(s.servizio)}</b>${s.note ? `<div class="sub">${esc(s.note)}</div>` : ""}</td><td>${esc(s.tipo)}</td>
+      <td class="mono">${s.data ? fmtD(s.data) : "–"}</td><td><span class="pill ${k}">${l}</span></td>
+      <td class="num">${fmtE(s.costo)}</td><td>${s.rinnovoAuto ? "Automatico" : "Manuale"}</td>
+      <td><div class="rowact"><button class="btn ghost" data-ed="scadenze:${esc(s.id)}">Modifica</button></div></td></tr>`; }).join("");
+    const se = $("#sca-empty"); se.hidden = sca.length > 0;
+    se.textContent = !loaded.scadenze ? "Caricamento scadenze…" : "Nessuna scadenza registrata. Inserisci dominio, hosting e caselle con le date prese dall'Area Clienti Aruba.";
+  }
+  $("#f-req").addEventListener("change", render);
+
+  // ---- scritture
+  const errMsg = e => e?.code === "permission_denied" ? "Non hai i permessi per modificare questi dati." : (e?.message || "Operazione non riuscita.");
+  function pulisci(sez, dati) {
+    const out = {};
+    for (const f of SCHEMA[sez].fields) {
+      if (!(f.k in dati)) continue;
+      let v = dati[f.k];
+      if (f.type === "number") v = v === "" || v == null ? null : Number(v);
+      else if (f.type === "checkbox") v = !!v;
+      else if (f.type === "date") v = /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : "";
+      else v = String(v ?? "").slice(0, f.area ? 8000 : 200).trim();
+      if (f.opts && v && !f.opts.includes(v)) v = f.opts[0];
+      out[f.k] = v;
+    }
+    return out;
+  }
+  async function salva(sez, id, dati) {
+    if (!db) throw new Error("Archivio non collegato.");
+    const d = pulisci(sez, dati);
+    if (!id) for (const f of SCHEMA[sez].fields) if (f.req && !d[f.k]) throw new Error(`Manca il campo «${f.l}».`);
+    d.aggiornato = Date.now();
+    if (id) { await db.collection(sez).doc(id).update(d); return id; }
+    if (sez === "richieste") Object.assign(d, { stato: "nuova", ts: Date.now() });
+    if (sez === "attivita") Object.assign(d, { fatto: false, ts: Date.now() });
+    const ref = await db.collection(sez).add(d); return ref?.id;
+  }
+
+  // ---- dialog di modifica
+  document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => b.closest("dialog").close()));
+  let editing = null;
+  function openEdit(sez, rec) {
+    if (!db) { toast("Apri la pagina su claude.ai per modificare i dati"); return; }
+    editing = { sez, rec };
+    const sch = SCHEMA[sez];
+    $("#e-title").textContent = (rec ? "Modifica " : "Nuova ") + sch.label;
+    $("#e-fields").innerHTML = sch.fields.map(f => {
+      const v = rec?.[f.k] ?? (f.opts ? f.opts[0] : "");
+      const id = `e-${f.k}`;
+      if (f.type === "checkbox") return `<label class="inline"><input type="checkbox" id="${id}" ${v ? "checked" : ""}> ${esc(f.l)}</label>`;
+      if (f.opts) return `<label>${esc(f.l)}<select id="${id}">${f.opts.map(o => `<option${o === v ? " selected" : ""}>${esc(o)}</option>`).join("")}</select></label>`;
+      if (f.area) return `<label>${esc(f.l)}<textarea id="${id}" rows="${f.rows || 3}" ${f.req ? "required" : ""}>${esc(v)}</textarea></label>`;
+      return `<label>${esc(f.l)}<input id="${id}" type="${f.type || "text"}" ${f.type === "number" ? 'step="any" min="0"' : ""} value="${esc(v ?? "")}" placeholder="${esc(f.ph || "")}" ${f.req ? "required" : ""}></label>`;
+    }).join("");
+    $("#e-del").hidden = !rec; $("#e-err").textContent = "";
+    $("#d-edit").showModal();
+  }
+  $("#f-edit").addEventListener("submit", async e => {
+    e.preventDefault();
+    const { sez, rec } = editing; const dati = {};
+    for (const f of SCHEMA[sez].fields) { const el = $("#e-" + f.k); dati[f.k] = f.type === "checkbox" ? el.checked : el.value; }
+    $("#e-save").disabled = true;
+    try { await salva(sez, rec?.id, dati); $("#d-edit").close(); toast("Salvato"); }
+    catch (err) { $("#e-err").textContent = errMsg(err) } finally { $("#e-save").disabled = false }
+  });
+  $("#e-del").addEventListener("click", () => {
+    const { sez, rec } = editing;
+    const nome = rec.indirizzo || rec.servizio || rec.titolo || rec.oggetto || "questo elemento";
+    $("#c-text").textContent = `«${nome}» verrà eliminato dall'archivio. L'operazione non si può annullare.`;
+    $("#d-confirm").returnValue = ""; $("#d-confirm").showModal();
+  });
+  $("#d-confirm").addEventListener("close", async () => {
+    if ($("#d-confirm").returnValue !== "yes" || !editing?.rec) return;
+    try { await db.collection(editing.sez).doc(editing.rec.id).delete(); $("#d-edit").close(); toast("Eliminato"); }
+    catch (err) { $("#e-err").textContent = errMsg(err) }
+  });
+  const find = (sez, id) => data[sez].find(r => r.id === id);
+  document.addEventListener("click", e => {
+    const ed = e.target.closest("[data-ed]");
+    if (ed) { const [sez, id] = ed.dataset.ed.split(":"); openEdit(sez, find(sez, id)); }
+  });
+  $("#b-cas").onclick = () => openEdit("caselle");
+  $("#b-sca").onclick = () => openEdit("scadenze");
+  $("#b-pag").onclick = () => openEdit("pagine");
+  $("#b-att").onclick = () => openEdit("attivita");
+  $("#b-req").onclick = () => openEdit("richieste");
+  $("#att-list").addEventListener("change", async e => {
+    const id = e.target.dataset.done; if (!id || !db) return;
+    try { await db.collection("attivita").doc(id).update({ fatto: e.target.checked, aggiornato: Date.now() }); }
+    catch (err) { toast(errMsg(err)); e.target.checked = !e.target.checked; }
+  });
+
+  // ---- richieste: azioni
+  const FIRMA = "Giuseppe Cannavò\nGAC Impianti\ninfo@gacimpianti.com · web.gacimpianti.com";
+  async function preparaRisposta(r, btn) {
+    if (!sample) { toast("L'assistente è disponibile solo aprendo la pagina su claude.ai"); return; }
+    btn.disabled = true; btn.textContent = "Scrivo la risposta…";
+    try {
+      const out = await sample(`Sei l'assistente di GAC Impianti (impianti elettrici, videosorveglianza, reti, automazioni; titolare Giuseppe Cannavò; sito web.gacimpianti.com). Scrivi in italiano la risposta alla mail di un cliente qui sotto. Tono cortese, professionale e concreto, frasi brevi. Non promettere prezzi, date o sopralluoghi precisi che non conosci: proponi di sentirsi o chiedi le informazioni mancanti (indirizzo, tipo di impianto, foto, recapito). Testo semplice senza markdown. Inizia con il saluto, chiudi con questa firma:\n${FIRMA}\n\nRispondi solo con il testo della mail.\n\nMittente: ${r.mittente || "non indicato"}\nOggetto: ${r.oggetto || ""}\n---\n${r.testo}`, { modelTier: "default" });
+      const bozza = (out.text || "").trim();
+      if (!bozza) throw new Error("Risposta vuota.");
+      await db.collection("richieste").doc(r.id).update({ bozza, stato: "bozza", aggiornato: Date.now() });
+      toast("Risposta pronta: rileggila prima di inviarla");
+    } catch (e) {
+      toast(e?.code === "not_granted" ? "Non hai autorizzato l'assistente per questa pagina" : e?.code === "rate_limited" ? "Troppe richieste: riprova tra poco" : "Non sono riuscito a preparare la risposta");
+      btn.disabled = false; btn.textContent = "Prepara risposta";
+    }
+  }
+  $("#req-list").addEventListener("click", async e => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const r = find("richieste", b.closest(".req").dataset.id); if (!r) return;
+    const act = b.dataset.act;
+    if (act === "edit") openEdit("richieste", r);
+    if (act === "copy") copy(r.bozza);
+    if (act === "draft") preparaRisposta(r, b);
+    if (act === "toggle") { try { await db.collection("richieste").doc(r.id).update({ stato: r.stato === "chiusa" ? (r.bozza ? "bozza" : "nuova") : "chiusa", aggiornato: Date.now() }); } catch (err) { toast(errMsg(err)) } }
+  });
+
+  // ---- assistente
+  const history = [];
+  const log = $("#log");
+  function addMsg(cls, text) { const d = document.createElement("div"); d.className = "msg " + cls; d.textContent = text; log.append(d); log.scrollTop = log.scrollHeight; return d; }
+  function addProposal(p) {
+    const box = document.createElement("div"); box.className = "proposal";
+    const txt = document.createElement("div");
+    const nome = p.dati.indirizzo || p.dati.servizio || p.dati.titolo || p.dati.oggetto || "";
+    const campi = Object.entries(pulisci(p.sezione, p.dati)).filter(([, v]) => v !== "" && v != null).map(([k, v]) => `${k}: ${typeof v === "boolean" ? (v ? "sì" : "no") : v}`).join(" · ");
+    txt.innerHTML = `<b>${p.id ? "Modifica" : "Aggiungi"} ${esc(SCHEMA[p.sezione].label)}</b> ${esc(nome)}<div class="sub">${esc(campi)}</div>`;
+    const act = document.createElement("div"); act.className = "actions";
+    const no = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: "Annulla" });
+    const ok = Object.assign(document.createElement("button"), { className: "btn primary", type: "button", textContent: "Conferma" });
+    act.append(no, ok); box.append(txt, act); log.append(box); log.scrollTop = log.scrollHeight;
+    const close = msg => { box.classList.add("done"); act.replaceChildren(Object.assign(document.createElement("span"), { textContent: msg })); };
+    no.onclick = () => close("Annullato");
+    ok.onclick = async () => { ok.disabled = no.disabled = true;
+      try { await salva(p.sezione, p.id, p.dati); close("Salvato"); } catch (err) { close(errMsg(err)) } };
+  }
+  const SEZIONI = Object.keys(SCHEMA);
+  const tools = [
+    { name: "leggi_archivio", description: "Legge i dati salvati di una sezione: caselle (indirizzi email del dominio), scadenze (rinnovi dominio/hosting/posta/PEC/SSL, data YYYY-MM-DD), pagine (pagine del sito e stato), attivita (cose da fare), richieste (mail dei clienti incollate, con eventuale bozza di risposta).",
+      inputSchema: { type: "object", properties: { sezione: { type: "string", enum: SEZIONI } }, required: ["sezione"] },
+      execute: ({ sezione }) => { if (!data[sezione]) throw new Error("sezione sconosciuta");
+        return data[sezione].slice(0, 80).map(r => { const o = { ...r }; delete o.aggiornato; if (o.testo) o.testo = String(o.testo).slice(0, 1500);
+          if (sezione === "scadenze") o.giorniMancanti = giorni(r.data); return o; }); } },
+    { name: "proponi_salvataggio", description: "Propone di aggiungere (senza id) o modificare (con id da leggi_archivio) un elemento di una sezione. NON salva: mostra all'utente un riquadro da confermare. Campi: caselle {indirizzo, tipo: Casella|Alias / inoltro|PEC, uso, inoltro, spazioGB, note}; scadenze {servizio, tipo: Dominio|Hosting|Posta|PEC|Certificato SSL|Altro, data YYYY-MM-DD, costo, rinnovoAuto, note}; pagine {titolo, url, stato: Aggiornata|Da aggiornare|Da creare, note}; attivita {titolo, area: Sito|Posta|Sicurezza|Amministrazione, note}; richieste {mittente, oggetto, testo}.",
+      inputSchema: { type: "object", properties: { sezione: { type: "string", enum: SEZIONI }, id: { type: "string" }, dati: { type: "object" } }, required: ["sezione", "dati"] },
+      execute: p => { if (!SCHEMA[p.sezione]) throw new Error("sezione sconosciuta");
+        if (p.id && !find(p.sezione, p.id)) throw new Error("id sconosciuto: usa leggi_archivio");
+        addProposal(p); return { esito: "riquadro mostrato, in attesa di conferma dell'utente" }; } },
+    { name: "salva_bozza_risposta", description: "Salva il testo di una risposta già scritta su una richiesta cliente (id da leggi_archivio richieste). Non invia nulla: l'utente la copia e la invia dalla sua casella.",
+      inputSchema: { type: "object", properties: { id: { type: "string" }, bozza: { type: "string" } }, required: ["id", "bozza"] },
+      execute: async ({ id, bozza }) => { if (!find("richieste", id)) throw new Error("richiesta non trovata");
+        await db.collection("richieste").doc(id).update({ bozza: String(bozza).slice(0, 8000), stato: "bozza", aggiornato: Date.now() }); return { esito: "bozza salvata" }; } },
+  ];
+  const SYSTEM = `Sei l'assistente di GAC Impianti (titolare Giuseppe Cannavò; impianti elettrici, videosorveglianza, reti, automazioni) per la gestione del sito internet (pubblicato sul sottodominio web.gacimpianti.com) e della posta del dominio gacimpianti.com, entrambi su Aruba. Il sottodominio "web" si gestisce dal pannello DNS Aruba (record A o CNAME); se un giorno il sito va spostato sul dominio principale servono redirect 301 da web.gacimpianti.com.
+Rispondi in italiano, breve e pratico, testo semplice senza markdown pesante, passi numerati quando spieghi una procedura.
+Conoscenze utili: posta Aruba IMAP imaps.aruba.it:993 SSL, POP3 pop3s.aruba.it:995 SSL, SMTP smtps.aruba.it:465 SSL con autenticazione, utente = indirizzo completo, webmail webmail.aruba.it. PEC Aruba: imaps.pec.aruba.it:993, smtps.pec.aruba.it:465, webmail.pec.it. DNS e caselle si gestiscono dall'Area Clienti / Pannello di controllo Aruba (managehosting.aruba.it). Per evitare lo spam: record SPF che includa Aruba (v=spf1 include:_spf.aruba.it ~all), DKIM attivato dal pannello Aruba, un record DMARC su _dmarc.gacimpianti.com (per iniziare p=none). Per il sito: dati aziendali obbligatori nel piè di pagina (ragione sociale, P.IVA, sede), privacy e cookie policy, HTTPS attivo, recapiti chiari.
+Regole: leggi sempre l'archivio con gli strumenti prima di parlare di caselle, scadenze o pagine; non inventare date, prezzi o dati. Per salvare usa proponi_salvataggio: è l'utente a confermare, quindi di' che è in attesa di conferma. Non chiedere e non salvare mai password. Non dire mai che una mail è stata inviata: la invia Giuseppe. Data di oggi: ${new Date().toLocaleDateString("it-IT")}.`;
+
+  let busy = false;
+  async function ask(text) {
+    text = text.trim(); if (!text || busy) return;
+    if (!sample) { $("#ai-note").hidden = false; $("#ai-note").textContent = "L'assistente non è disponibile in questa visualizzazione. Apri la pagina su claude.ai."; return; }
+    busy = true; $("#send").disabled = true; $("#prompt").value = "";
+    addMsg("user", text); history.push({ role: "user", content: text });
+    const out = addMsg("bot", "Ci penso…");
+    try {
+      const msgs = history.slice(-12); if (msgs[0].role !== "user") msgs.shift();
+      msgs[0] = { ...msgs[0], content: SYSTEM + "\n\nRichiesta: " + msgs[0].content };
+      const r = await sample(msgs, { tools: db ? tools : [], cache: false, onText: ({ text }) => { if (text) { out.textContent = text; log.scrollTop = log.scrollHeight; } } });
+      out.textContent = r.text || "Fatto."; history.push({ role: "assistant", content: r.text || "Fatto." });
+    } catch (e) {
+      history.pop();
+      out.textContent = e?.code === "not_granted" ? "Non hai autorizzato l'assistente per questa pagina." : e?.code === "rate_limited" ? "Troppe richieste ravvicinate: riprova tra qualche istante." : "Non sono riuscito a rispondere: " + (e?.message || "errore sconosciuto");
+    } finally { busy = false; $("#send").disabled = false; }
+  }
+  $("#composer").addEventListener("submit", e => { e.preventDefault(); ask($("#prompt").value); });
+  $("#prompt").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask($("#prompt").value); } });
+  $("#chips").addEventListener("click", e => { const c = e.target.closest(".chip"); if (c) { show("ai"); ask(c.textContent); } });
+
+  // ---- avvio
+  render();
+  (async () => {
+    const c = window.claude;
+    if (!c?.use) { $("#status").textContent = "Apri la pagina su claude.ai per vedere i dati."; return; }
+    [db, sample] = await Promise.all([c.use("db"), c.use("sample")]);
+    if (!sample) { $("#ai-note").hidden = false; $("#ai-note").textContent = "L'assistente non è disponibile in questa visualizzazione."; }
+    if (!db) { $("#status").textContent = "Accedi a claude.ai per vedere i dati."; return; }
+    const timer = setTimeout(() => { $("#status").textContent = "L'archivio non risponde ancora: i dati potrebbero non essere aggiornati."; }, 10000);
+    const live = () => { clearTimeout(timer); $("#status").textContent = "Dati salvati · aggiornati in tempo reale"; };
+    for (const sez of SEZIONI) {
+      db.collection(sez).onSnapshot(s => { data[sez] = s.docs.map(d => ({ id: d.id, ...d.data() })); loaded[sez] = true; if (!s.metadata?.fromCache) live(); render(); },
+        e => { clearTimeout(timer); loaded[sez] = true; $("#status").textContent = "Impossibile leggere i dati (" + (e?.code || "errore") + ")."; render(); });
+    }
+  })();
+})();
+</script>
