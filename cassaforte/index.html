@@ -188,7 +188,7 @@ dialog h2 { font-family: var(--f-display); font-size: 20px; margin: 0 }
         if (pw.length < 10) throw new Error("La password principale deve avere almeno 10 caratteri.");
         if (pw !== $("#l-pw2").value) throw new Error("Le due password non coincidono.");
         salt = crypto.getRandomValues(new Uint8Array(16)); key = await deriveKey(pw, salt);
-        items = [{ id: crypto.randomUUID(), servizio: "Aruba · Area Clienti", url: "https://admin.aruba.it", user: "", pw: "", note: "Inserisci nome utente e la nuova password dopo averla cambiata" }];
+        items = [{ id: crypto.randomUUID(), servizio: "Aruba · Area Clienti", url: "https://admin.aruba.it", user: "", pw: "", note: "Inserisci nome utente e password" }];
         await persist();
       } else {
         salt = unb64(stored.salt); const k = await deriveKey(pw, salt);
