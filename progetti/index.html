@@ -97,6 +97,14 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 .note-i { border-left: 2px solid var(--line); padding-left: 10px; white-space: pre-wrap; overflow-wrap: anywhere }
 .note-i .meta { display: block; font-family: var(--f-mono); font-size: 11px; color: var(--muted); white-space: normal }
 .desc { white-space: pre-wrap; max-width: 75ch; margin: 0; color: var(--ink) }
+.docs { list-style: none; margin: 0; padding: 0; display: grid }
+.docs li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line) }
+.docs li:last-child { border-bottom: 0 }
+.docs .ext { font: 600 10px var(--f-mono); letter-spacing: .06em; color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 3px 6px; text-transform: uppercase }
+.docs a { color: var(--ink); font-weight: 500; overflow-wrap: anywhere }
+.docs a:hover { color: var(--accent) }
+.upl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.upl input[type=file] { flex: 1 1 220px; font-size: 13px }
 
 dialog { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); padding: 0; width: min(520px, calc(100vw - 32px)) }
 dialog::backdrop { background: rgb(0 0 0 / .35) }
@@ -258,8 +266,8 @@ label.inline { display: flex; align-items: center; gap: 6px; color: var(--ink); 
   $("#p-stato").innerHTML = STATI.map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
   $("#fstato").innerHTML = '<option value="">Tutti gli stati</option><option value="attivi" selected>Solo attivi</option>' + STATI.map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
 
-  let db = null, user = null, sample = null, myId = null;
-  let progetti = [], attivita = [], note = [], loaded = { p: false, a: false, n: false };
+  let db = null, user = null, sample = null, assets = null, myId = null;
+  let progetti = [], attivita = [], note = [], documenti = [], loaded = { p: false, a: false, n: false };
   let openId = null;
   const names = {};
 
@@ -276,6 +284,8 @@ label.inline { display: flex; align-items: center; gap: 6px; color: var(--ink); 
   const byId = id => progetti.find(p => p.id === id);
   const tasksOf = id => attivita.filter(a => a.progettoId === id);
   const notesOf = id => note.filter(n => n.progettoId === id).sort((x, y) => y.ts - x.ts);
+  const docsOf = id => documenti.filter(x => x.progettoId === id).sort((x, y) => String(x.data || "").localeCompare(String(y.data || "")) || (x.ts - y.ts));
+  const docUrl = x => x.url || (x.assetId ? "/_blob/" + x.assetId : "#");
   const progress = id => { const t = tasksOf(id); return t.length ? Math.round(100 * t.filter(a => a.fatto).length / t.length) : null; };
   const isLateTask = a => !a.fatto && a.scadenza && a.scadenza < today();
   const isLatePrj = p => ATTIVI.includes(p.stato) && p.scadenza && p.scadenza < today();
@@ -338,7 +348,7 @@ label.inline { display: flex; align-items: center; gap: 6px; color: var(--ink); 
     const p = byId(openId);
     if (!p) { closeDetail(); return; }
     const t = tasksOf(p.id).sort((x, y) => (x.fatto - y.fatto) || (x.scadenza || "9999").localeCompare(y.scadenza || "9999"));
-    const n = notesOf(p.id), pr = progress(p.id);
+    const n = notesOf(p.id), pr = progress(p.id), d = docsOf(p.id);
     const keep = { t: $("#n-task")?.value || "", d: $("#n-task-d")?.value || "", n: $("#n-note")?.value || "" };
     const focus = document.activeElement?.id;
     $("#detail").innerHTML = `
@@ -357,6 +367,13 @@ label.inline { display: flex; align-items: center; gap: 6px; color: var(--ink); 
         <div><span>Importo</span>${p.importo ? fmtE(p.importo) : "—"}</div>
       </div>
       ${p.descrizione ? `<p class="desc">${esc(p.descrizione)}</p>` : ""}
+      <div class="panel box">
+        <div class="boxhead"><h3>Documenti</h3><span class="status">${d.length ? d.length + (d.length === 1 ? " file" : " file") : ""}</span></div>
+        <ul class="docs">${d.map(x => `<li><span class="ext">${esc((String(x.nome).split(".").pop() || "file").slice(0, 4))}</span>
+          <div style="min-width:0"><a href="${esc(docUrl(x))}" target="_blank" rel="noopener">${esc(x.titolo || x.nome)}</a>${x.descrizione ? `<span class="sub">${esc(x.descrizione)}</span>` : ""}</div>
+          <span class="sub" style="white-space:nowrap">${x.data ? fmtDay(x.data) : ""}</span></li>`).join("") || '<li style="display:block;color:var(--muted)">Nessun documento allegato. Aggiungi determine, verbali, preventivi, foto.</li>'}</ul>
+        ${assets ? `<form class="upl" id="f-doc"><input type="file" id="n-doc" accept=".pdf,.jpg,.jpeg,.png,.txt,.csv" required aria-label="File da allegare"><button class="btn primary">Allega</button><span class="status" id="doc-msg"></span></form>` : ""}
+      </div>
       <div class="cols">
         <div class="panel box">
           <div class="boxhead"><h3>Attività</h3><span class="status">${pr === null ? "" : `${t.filter(a => a.fatto).length}/${t.length} completate · ${pr}%`}</span></div>
@@ -432,7 +449,14 @@ label.inline { display: flex; align-items: center; gap: 6px; color: var(--ink); 
     try {
       if (e.target.id === "f-task") { await addAttivita(openId, $("#n-task").value, $("#n-task-d").value); $("#n-task").value = ""; $("#n-task-d").value = ""; }
       if (e.target.id === "f-note") { await addNota(openId, $("#n-note").value); $("#n-note").value = ""; }
-    } catch (err) { $("#status").textContent = errMsg(err) } finally { btn.disabled = false }
+      if (e.target.id === "f-doc") {
+        const f = $("#n-doc").files?.[0]; if (!f || !assets) return;
+        $("#doc-msg").textContent = "Caricamento…";
+        const up = await assets.upload(f);
+        await db.collection("documenti").add({ progettoId: openId, nome: f.name, titolo: f.name.replace(/\.[^.]+$/, "").replace(/_/g, " "), descrizione: "",
+          assetId: up.id, url: up.url, tipo: up.contentType || f.type || "", data: today(), ts: Date.now(), utente: myId || "" });
+      }
+    } catch (err) { if ($("#doc-msg") && e.target.id === "f-doc") $("#doc-msg").textContent = errMsg(err); else $("#status").textContent = errMsg(err) } finally { btn.disabled = false }
   });
 
   // ---- dialog progetto
@@ -508,6 +532,7 @@ label.inline { display: flex; align-items: center; gap: 6px; color: var(--ink); 
       execute: ({ progettoId }) => { const p = needPrj(progettoId);
         return { ...slim(p), descrizione: p.descrizione || "",
           attivita: tasksOf(p.id).map(a => ({ id: a.id, testo: a.testo, scadenza: a.scadenza, fatta: !!a.fatto, inRitardo: isLateTask(a) })),
+          documenti: docsOf(p.id).map(x => ({ titolo: x.titolo || x.nome, descrizione: x.descrizione || "", data: x.data || "" })),
           diario: notesOf(p.id).slice(0, 25).map(n => ({ data: new Date(n.ts).toISOString().slice(0, 16), testo: n.testo })) }; } },
     { name: "scadenze", description: "Attività aperte e consegne di progetti attivi in scadenza entro N giorni da oggi (default 14). Include sempre quelle già in ritardo.",
       inputSchema: { type: "object", properties: { giorni: { type: "number" } } },
@@ -561,7 +586,7 @@ label.inline { display: flex; align-items: center; gap: 6px; color: var(--ink); 
   (async () => {
     const c = window.claude;
     if (!c?.use) { $("#status").textContent = "Apri la pagina su claude.ai per accedere all'archivio condiviso."; return; }
-    [db, user, sample] = await Promise.all([c.use("db"), c.use("user"), c.use("sample")]);
+    [db, user, sample, assets] = await Promise.all([c.use("db"), c.use("user"), c.use("sample"), c.use("assets")]);
     if (!sample) { $("#ai-note").hidden = false; $("#ai-note").textContent = "L'assistente non è disponibile in questa visualizzazione."; }
     if (!db) { $("#status").textContent = "Accedi a claude.ai per vedere i progetti."; return; }
     try { myId = await user?.id?.() } catch {}
@@ -570,6 +595,7 @@ label.inline { display: flex; align-items: center; gap: 6px; color: var(--ink); 
     db.collection("progetti").onSnapshot(s => { progetti = s.docs.map(d => ({ id: d.id, ...d.data() })); loaded.p = true; if (!s.metadata?.fromCache) live(); render(); },
       e => { clearTimeout(timer); loaded.p = true; $("#status").textContent = "Impossibile leggere i progetti (" + (e?.code || "errore") + ")."; render(); });
     db.collection("attivita").onSnapshot(s => { attivita = s.docs.map(d => ({ id: d.id, ...d.data() })); loaded.a = true; render(); }, () => { loaded.a = true; render(); });
+    db.collection("documenti").onSnapshot(s => { documenti = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {});
     db.collection("note").orderBy("ts", "desc").limit(1000).onSnapshot(s => { note = s.docs.map(d => ({ id: d.id, ...d.data() })); loaded.n = true; render(); }, () => { loaded.n = true; render(); });
   })();
 })();
