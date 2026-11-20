@@ -13,10 +13,12 @@ description: Gestisce il sito internet di GAC Impianti (web.gacimpianti.com) e l
 - Gmail personale (`gcannavo20@…`) è collegato come connettore, ma la posta del dominio resta su Aruba: in Gmail si trovano solo le mail che Giuseppe ha scambiato con quegli indirizzi.
 - Pannello di controllo: app «Sito e Posta GAC» → https://claude.ai/artifact/LaMb8ZcWRPptKqM9FtKJGR
   (database con le collezioni `caselle`, `scadenze`, `pagine`, `attivita`, `richieste`; leggile e scrivile con lo strumento `ArtifactData`).
+- Collegato alla «Centrale GAC» (https://claude.ai/artifact/V2dBBEvxsTp2MLs2CvArhZ) come app `sito`: la sincronizzazione oraria scrive lo stato in `stato/sito` ed esegue le richieste confermate con `app: "sito"`.
+- Le credenziali stanno nella «Cassaforte GAC» (https://claude.ai/artifact/Q6CPm9zDvnkVbBgkb5t7Nk), cifrata con la password principale di Giuseppe: non leggerla e non scriverci. Giuseppe ha deciso di non cambiare le password: non proporlo.
 
 ## Regole
 1. **Mai inviare mail.** Prepara il testo o una bozza Gmail (`create_draft`) e lascia che sia Giuseppe a inviarla dalla casella giusta.
-2. **Mai chiedere, scrivere o salvare password**, né in chat né nel pannello. Se ne vedi una in una mail, suggerisci di cambiarla e di usare un gestore di password, senza ripeterla.
+2. **Mai chiedere, scrivere o salvare password**, né in chat né nel pannello. Se ne vedi una in una mail, non ripeterla e ricorda che il posto giusto è la Cassaforte GAC.
 3. Prima di scrivere nel database del pannello, mostra cosa cambierai e aspetta l'ok.
 4. Non inventare prezzi, date di intervento o dati aziendali (P.IVA, indirizzo): chiedili o lasciali come `[da completare]`.
 5. Rispondi in italiano, frasi brevi, passi numerati per le procedure.
